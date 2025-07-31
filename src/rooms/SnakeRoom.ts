@@ -16,7 +16,7 @@ export class SnakeRoom extends Room<GameState> {
     PONG: "pong"
   };
 
-  maxClients = 4;
+  maxClients = 1;
 
   onCreate(options: any) {
     this.setState(new GameState());
@@ -65,9 +65,6 @@ export class SnakeRoom extends Room<GameState> {
 
       // Initialize snake positions for all players
       this.state.players.forEach((player) => {
-        if (!player.snake) {
-          player.snake = new Snake(); // Ensure snake exists
-        }
 
         // Set initial position and direction
         const position = this.getNextStartPosition();
@@ -79,7 +76,6 @@ export class SnakeRoom extends Room<GameState> {
         player.snake.direction.y = 0;
 
         player.snake.isDead = false;
-        player.snake.size = 1; // Set initial size
 
       });
 
@@ -162,77 +158,64 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   update() {
-    if (!this.state.hasGameStarted) {
-      return;
-    }
+    if (!this.state.hasGameStarted) return;
 
-    // Update all snakes
     this.state.players.forEach((player) => {
-      if (!player.snake || player.snake.isDead) return;
+      const snake = player.snake;
 
-      // Store previous position for tail
-      const prevX = player.snake.x;
-      const prevY = player.snake.y;
+      if (!snake || snake.isDead) return;
 
-      // Update position based on direction
-      player.snake.x += player.snake.direction.x;
-      player.snake.y += player.snake.direction.y;
+      const prevX = snake.x;
+      const prevY = snake.y;
 
-      // Handle wrapping around screen edges
-      if (player.snake.x >= gameConfig.scaleFactor) {
-        player.snake.x = 0;
-      } else if (player.snake.x < 0) {
-        player.snake.x = gameConfig.scaleFactor - 1;
+      snake.x += snake.direction.x;
+      snake.y += snake.direction.y;
+
+      if (snake.x >= gameConfig.scaleFactor) {
+        snake.x = 0;
+      } else if (snake.x < 0) {
+        snake.x = gameConfig.scaleFactor - 1;
       }
 
-      if (player.snake.y >= gameConfig.scaleFactor) {
-        player.snake.y = 0;
-      } else if (player.snake.y < 0) {
-        player.snake.y = gameConfig.scaleFactor - 1;
+      if (snake.y >= gameConfig.scaleFactor) {
+        snake.y = 0;
+      } else if (snake.y < 0) {
+        snake.y = gameConfig.scaleFactor - 1;
       }
 
-      // Update tail
-      if (player.snake.size > 0) {
-        // Move all tail segments
-        for (let i = 0; i < player.snake.tail.length - 1; i++) {
-          player.snake.tail[i].x = player.snake.tail[i + 1].x;
-          player.snake.tail[i].y = player.snake.tail[i + 1].y;
+      if (snake.tail.length > 0) {
+        // Move tail segments backwards
+        for (let i = snake.tail.length - 1; i > 0; i--) {
+          snake.tail[i].x = snake.tail[i - 1].x;
+          snake.tail[i].y = snake.tail[i - 1].y;
         }
 
-        // Add new segment at previous head position
-        if (player.snake.tail.length > 0) {
-          const lastSegment = player.snake.tail[player.snake.tail.length - 1];
-          lastSegment.x = prevX;
-          lastSegment.y = prevY;
-        }
+        // First segment moves to previous head position
+        snake.tail[0].x = prevX;
+        snake.tail[0].y = prevY;
       }
 
-      // Check collisions
-      this.checkFoodCollision(player);
       this.checkSnakeCollision(player);
+      this.checkFoodCollision(player);
     });
-
-    // Check game over condition
-    if (this.state.aliveCount <= 0 || this.state.players.length === 0) {
-      this.state.hasGameStarted = false;
-      this.state.aliveCount = 0;
-      this.broadcast("gameOver", {});
-      // Note: No need to clear interval as Colyseus handles this
-    }
   }
 
   private checkFoodCollision(player: Player) {
     const foodIndex = this.state.foodCoordinates.findIndex(food =>
-      food.x === player.snake.x && food.y === food.y
+      food.x === player.snake.x && food.y === player.snake.y
     );
 
     if (foodIndex !== -1) {
-      // Increase snake size and score
+
       player.snake.size++;
       const food = this.state.foodCoordinates[foodIndex];
       player.snake.score += foodScore[food.type];
 
-      // Remove eaten food and generate new one
+      const lastSegment = player.snake.tail[player.snake.tail.length - 1];
+      const tailX = lastSegment ? lastSegment.x : player.snake.x;
+      const tailY = lastSegment ? lastSegment.y : player.snake.y;
+      player.snake.tail.push(new Coordinates(tailX, tailY));
+
       this.state.foodCoordinates.splice(foodIndex, 1);
       const newFood = new Food();
       const [x, y, index, type] = generateFoodCoordinates()[0];

@@ -3,12 +3,18 @@ import { Schema, ArraySchema, type } from "@colyseus/schema";
 export class Coordinates extends Schema {
     @type("number") x: number = 0;
     @type("number") y: number = 0;
+
+    constructor(x: number = 0, y: number = 0) {
+        super();
+        this.x = x;
+        this.y = y;
+    }
 }
 
 export class Snake extends Schema {
     @type("number") x: number = 0;
     @type("number") y: number = 0;
-    @type([ Coordinates ]) tail: Coordinates[] = [];
+    @type([Coordinates]) tail: Coordinates[] = [];
     @type("boolean") isDead: boolean = false;
     @type("number") score: number = 0;
     @type("number") size: number = 0;
