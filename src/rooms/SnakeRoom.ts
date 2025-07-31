@@ -21,9 +21,18 @@ export class SnakeRoom extends Room<GameState> {
   onCreate(options: any) {
     this.setState(new GameState());
 
+    const initialFood = generateFoodCoordinates();
+    initialFood.forEach(([x, y, index, type]) => {
+      const food = new Food();
+      food.x = x;
+      food.y = y;
+      food.index = index;
+      food.type = type;
+      this.state.foodCoordinates.push(food);
+    });
+
     // Use the static message types
     this.onMessage(SnakeRoom.messageTypes.MOVE, (client, data) => {
-      console.log("[SnakeRoom] Received move message from", client.sessionId, "direction:", data.key);
       const player = this.state.players.find(p => p.id === client.sessionId);
 
       if (player && player.snake && !player.snake.isDead) {
@@ -46,9 +55,6 @@ export class SnakeRoom extends Room<GameState> {
             player.snake.direction.y = 0;
             break;
         }
-
-        console.log(`[SnakeRoom] Updated snake direction for ${player.id}:`,
-          { x: player.snake.direction.x, y: player.snake.direction.y });
       }
     });
 
@@ -163,12 +169,6 @@ export class SnakeRoom extends Room<GameState> {
     // Update all snakes
     this.state.players.forEach((player) => {
       if (!player.snake || player.snake.isDead) return;
-
-      // Log current position and direction before update
-      console.log(`[SnakeRoom] Snake ${player.id} before update:`, {
-        position: { x: player.snake.x, y: player.snake.y },
-        direction: { x: player.snake.direction.x, y: player.snake.direction.y }
-      });
 
       // Store previous position for tail
       const prevX = player.snake.x;
