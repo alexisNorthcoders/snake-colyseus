@@ -206,7 +206,6 @@ export class SnakeRoom extends Room<GameState> {
     );
 
     if (foodIndex !== -1) {
-
       player.snake.size++;
       const food = this.state.foodCoordinates[foodIndex];
       player.snake.score += foodScore[food.type];
@@ -218,10 +217,10 @@ export class SnakeRoom extends Room<GameState> {
 
       this.state.foodCoordinates.splice(foodIndex, 1);
       const newFood = new Food();
-      const [x, y, index, type] = generateFoodCoordinates()[0];
+      const [x, y, _, type] = generateFoodCoordinates()[0];
       newFood.x = x;
       newFood.y = y;
-      newFood.index = index;
+      newFood.index = food.index;
       newFood.type = type;
       this.state.foodCoordinates.push(newFood);
     }
