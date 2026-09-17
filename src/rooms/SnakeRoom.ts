@@ -76,6 +76,9 @@ export class SnakeRoom extends Room<GameState> {
         player.snake.direction.y = 0;
 
         player.snake.isDead = false;
+        player.snake.size = 1;
+        player.snake.score = 0;
+        player.snake.tail.splice(0, player.snake.tail.length);
 
       });
 
