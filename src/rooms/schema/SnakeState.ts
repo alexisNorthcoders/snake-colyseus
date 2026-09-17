@@ -66,6 +66,7 @@ export class GameState extends Schema {
     @type("boolean") hasGameStarted: boolean = false;
     @type("number") nextPositionIndex: number = 0;
     @type("number") aliveCount: number = 0;
+    @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();
     @type([Food]) foodCoordinates = new ArraySchema<Food>();
 }

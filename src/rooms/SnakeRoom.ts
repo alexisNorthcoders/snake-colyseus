@@ -20,6 +20,7 @@ export class SnakeRoom extends Room<GameState> {
 
   onCreate(options: any) {
     this.setState(new GameState());
+    this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
     const initialFood = generateFoodCoordinates();
     initialFood.forEach(([x, y, index, type]) => {
