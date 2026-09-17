@@ -261,12 +261,17 @@ export class SnakeRoom extends Room<GameState> {
     this.state.aliveCount--;
 
     if (this.state.aliveCount <= 1) {
-      // Game over - find winner
+      // Game over - round has ended, whether or not a survivor remains
       const winner = this.state.players.find(p => !p.snake.isDead);
-      if (winner) {
-        // Use the static message type for broadcast
-        this.broadcast(SnakeRoom.messageTypes.GAME_OVER, { winnerId: winner.id });
-      }
+      const rankings = [...this.state.players]
+        .sort((a, b) => b.snake.score - a.snake.score)
+        .map(p => ({ id: p.id, name: p.name, score: p.snake.score }));
+
+      this.broadcast(SnakeRoom.messageTypes.GAME_OVER, {
+        winnerId: winner?.id,
+        rankings
+      });
+
       this.state.hasGameStarted = false;
     }
   }
