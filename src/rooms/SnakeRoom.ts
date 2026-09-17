@@ -12,11 +12,12 @@ export class SnakeRoom extends Room<GameState> {
     GAME_STARTED: "gameStarted",
     NEW_PLAYER: "newPlayer",
     GAME_OVER: "gameOver",
+    UPDATE_PLAYER: "updatePlayer",
     PING: "ping",
     PONG: "pong"
   };
 
-  maxClients = 1;
+  maxClients = 2;
 
   onCreate(options: any) {
     this.setState(new GameState());
@@ -31,6 +32,16 @@ export class SnakeRoom extends Room<GameState> {
       food.type = type;
       this.state.foodCoordinates.push(food);
     });
+
+    // Run a single simulation loop for the room's lifetime; update() itself
+    // is a no-op while hasGameStarted is false. Previously this was (re)started
+    // on every "startGame" message, and since Colyseus's setSimulationInterval
+    // doesn't clear the previous interval, each "Play Again" click left the
+    // old loop running alongside the new one — stacking update() calls per
+    // tick and causing snakes to desync/speed up after repeated rounds.
+    this.setSimulationInterval((deltaTime) => {
+      this.update();
+    }, 1000 / gameConfig.fps);
 
     // Use the static message types
     this.onMessage(SnakeRoom.messageTypes.MOVE, (client, data) => {
@@ -61,6 +72,14 @@ export class SnakeRoom extends Room<GameState> {
 
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
+
+      if (this.state.hasGameStarted) {
+        // A round is already in progress (e.g. two clients both clicked
+        // "Play Again" before either received the gameStarted broadcast) —
+        // ignore the duplicate request instead of resetting mid-round state.
+        return;
+      }
+
       this.state.hasGameStarted = true;
       this.state.aliveCount = this.state.players.length; // Set initial alive count
 
@@ -85,11 +104,6 @@ export class SnakeRoom extends Room<GameState> {
 
       console.log("[SnakeRoom] All snake positions initialized");
 
-      this.setSimulationInterval((deltaTime) => {
-
-        this.update();
-      }, 1000 / gameConfig.fps); // Use your configured FPS
-
       // Broadcast game start after positions are set
       this.broadcast(SnakeRoom.messageTypes.GAME_STARTED, {}, { afterNextPatch: true });
     });
@@ -105,6 +119,15 @@ export class SnakeRoom extends Room<GameState> {
         }
       };
       this.onJoin(client, formattedOptions);
+    });
+
+    this.onMessage(SnakeRoom.messageTypes.UPDATE_PLAYER, (client, message) => {
+      const player = this.state.players.find(p => p.id === client.sessionId);
+      if (!player || this.state.hasGameStarted) return;
+
+      if (message.colours?.head) player.colours.head = message.colours.head;
+      if (message.colours?.body) player.colours.body = message.colours.body;
+      if (message.colours?.eyes) player.colours.eyes = message.colours.eyes;
     });
 
     // Add ping handler
