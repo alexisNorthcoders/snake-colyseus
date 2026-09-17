@@ -1,7 +1,7 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Player, Snake, Food, PlayerColors, Coordinates } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
-import { foodScore, gameConfig, generateFoodCoordinates, startingPositions } from "../gameConfig";
+import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, startingPositions } from "../gameConfig";
 // Removed import of Player from './schema/Player'
 
 export class SnakeRoom extends Room<GameState> {
@@ -23,13 +23,12 @@ export class SnakeRoom extends Room<GameState> {
     this.setState(new GameState());
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
-    const initialFood = generateFoodCoordinates();
-    initialFood.forEach(([x, y, index, type]) => {
+    generateFoodCoordinates().forEach((placement) => {
       const food = new Food();
-      food.x = x;
-      food.y = y;
-      food.index = index;
-      food.type = type;
+      food.x = placement.x;
+      food.y = placement.y;
+      food.index = placement.index;
+      food.type = placement.type;
       this.state.foodCoordinates.push(food);
     });
 
@@ -240,13 +239,12 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   private checkFoodCollision(player: Player) {
-    const foodIndex = this.state.foodCoordinates.findIndex(food =>
+    const food = this.state.foodCoordinates.find(food =>
       food.x === player.snake.x && food.y === player.snake.y
     );
 
-    if (foodIndex !== -1) {
+    if (food) {
       player.snake.size++;
-      const food = this.state.foodCoordinates[foodIndex];
       player.snake.score += foodScore[food.type];
 
       const lastSegment = player.snake.tail[player.snake.tail.length - 1];
@@ -254,15 +252,57 @@ export class SnakeRoom extends Room<GameState> {
       const tailY = lastSegment ? lastSegment.y : player.snake.y;
       player.snake.tail.push(new Coordinates(tailX, tailY));
 
-      this.state.foodCoordinates.splice(foodIndex, 1);
-      const newFood = new Food();
-      const [x, y, _, type] = generateFoodCoordinates()[0];
-      newFood.x = x;
-      newFood.y = y;
-      newFood.index = food.index;
-      newFood.type = type;
-      this.state.foodCoordinates.push(newFood);
+      this.respawnFood(food);
     }
+  }
+
+  /**
+   * Moves an eaten pellet to a free cell, in place. Splicing it out and pushing
+   * a replacement would shift every later index, making the patch carry the
+   * whole food array instead of the three fields that actually changed.
+   *
+   * A pellet that lands on a snake or on another pellet is a ghost the player
+   * can never eat, since food collision only ever finds the first entry for a
+   * cell. When there is nowhere free left at all — the snakes and the other
+   * pellets between them covering every cell on the board — the pellet stays
+   * where it is, under the head that just ate it, and becomes eatable again as
+   * soon as the snake's tail moves off it.
+   */
+  private respawnFood(food: Food) {
+    const occupied = this.occupiedCells(food);
+    const cell = pickFreeCell((x, y) => occupied.has(cellKey(x, y)));
+
+    if (!cell) return;
+
+    food.x = cell.x;
+    food.y = cell.y;
+    food.type = randomFoodType();
+  }
+
+  /**
+   * Every cell a new pellet has to stay off: snake heads, snake bodies and the
+   * pellets already on the board. `ignore` leaves out the pellet being moved,
+   * whose own cell is up for grabs again.
+   *
+   * Dead snakes count: their bodies stay on the board until the next round, so
+   * a pellet underneath one would look just as unreachable as a real ghost.
+   */
+  private occupiedCells(ignore?: Food) {
+    const occupied = new Set<string>();
+
+    this.state.players.forEach((player) => {
+      const snake = player.snake;
+      if (!snake) return;
+
+      occupied.add(cellKey(snake.x, snake.y));
+      snake.tail.forEach((segment) => occupied.add(cellKey(segment.x, segment.y)));
+    });
+
+    this.state.foodCoordinates.forEach((food) => {
+      if (food !== ignore) occupied.add(cellKey(food.x, food.y));
+    });
+
+    return occupied;
   }
 
   private checkSnakeCollision(player: Player) {
