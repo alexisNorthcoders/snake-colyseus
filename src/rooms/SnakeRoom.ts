@@ -33,6 +33,12 @@ export class SnakeRoom extends Room<GameState> {
       this.state.foodCoordinates.push(food);
     });
 
+    // Patches are flushed by hand at the end of each simulation tick (below),
+    // so turn off Colyseus's independent 20 Hz patch timer. Left on, a move
+    // computed at tick time waits 0–50 ms for the next beat of that unrelated
+    // clock before it ships, which reads as stutter against a 125 ms tick.
+    this.patchRate = null;
+
     // Run a single simulation loop for the room's lifetime; update() itself
     // is a no-op while hasGameStarted is false. Previously this was (re)started
     // on every "startGame" message, and since Colyseus's setSimulationInterval
@@ -41,6 +47,12 @@ export class SnakeRoom extends Room<GameState> {
     // tick and causing snakes to desync/speed up after repeated rounds.
     this.setSimulationInterval((deltaTime) => {
       this.update();
+
+      // Outside update()'s "no round in progress" early return on purpose:
+      // this is now the room's only flush, so the lobby needs it too — without
+      // it a joining player and mid-lobby colour changes would never reach the
+      // other clients. It also drains the afterNextPatch broadcast queue.
+      this.broadcastPatch();
     }, 1000 / gameConfig.fps);
 
     // Use the static message types
