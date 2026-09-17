@@ -17,8 +17,10 @@ jobs:
           script: |
             set -e
             cd /root/Projects/snake-colyseus
+            git checkout -- package.json
             git pull origin master
             npm ci
             npm run build
+            npm pkg set version="0.0.$(git rev-list --count HEAD)"
             pm2 startOrReload ecosystem.config.cjs --env production
             pm2 save
