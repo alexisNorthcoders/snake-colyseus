@@ -13,8 +13,8 @@ npm start
 ## Structure
 
 - `index.ts`: main entry point, register an empty room handler and attach [`@colyseus/monitor`](https://github.com/colyseus/colyseus-monitor)
-- `src/rooms/MyRoom.ts`: an empty room handler for you to implement your logic
-- `src/rooms/schema/MyRoomState.ts`: an empty schema used on your room's state.
+- `src/rooms/SnakeRoom.ts`: the game room — simulation loop, player messages and round lifecycle
+- `src/rooms/schema/SnakeState.ts`: the synchronized state schema (players, snakes, food)
 - `loadtest/example.ts`: scriptable client for the loadtest tool (see `npm run loadtest`)
 - `package.json`:
     - `scripts`:

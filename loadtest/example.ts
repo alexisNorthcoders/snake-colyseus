@@ -3,8 +3,11 @@ import { cli, Options } from "@colyseus/loadtest";
 
 export async function main(options: Options) {
     const client = new Client(options.endpoint);
+    // SnakeRoom.onJoin reads name and colours straight off the options, so a
+    // client that joins without them throws before it ever connects.
     const room: Room = await client.joinOrCreate(options.roomName, {
-        // your join options here...
+        name: `bot-${Math.floor(Math.random() * 10000)}`,
+        colours: { head: "#00ff00", body: "#00ff00", eyes: "#ffffff" },
     });
 
     console.log("joined successfully!");
