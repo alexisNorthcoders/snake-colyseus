@@ -12,7 +12,11 @@ export const gameConfig = {
     }
 }
 
-export const startingPositions = [{ x: 5, y: 5 }, { x: 15, y: 5 }, { x: 15, y: 5 }, { x: 15, y: 15 }]
+/**
+ * One cell per quadrant, each ten cells from its neighbours: on a board that
+ * wraps round, that is as far apart as two snakes can start.
+ */
+export const startingPositions = [{ x: 5, y: 5 }, { x: 15, y: 5 }, { x: 5, y: 15 }, { x: 15, y: 15 }]
 
 const snakeConfig = {
     colours: {
@@ -110,4 +114,19 @@ export const generateFoodCoordinates = (): FoodPlacement[] => {
     }
 
     return placements;
+};
+
+/**
+ * The spawn cells for a round of `count` snakes, read from the table starting
+ * at `offset` and wrapping round. Consecutive entries of a table with no
+ * duplicates are always distinct, so this only has to refuse a round with
+ * more snakes than there are cells.
+ */
+export const spawnCells = (count: number, offset: number): Cell[] => {
+    if (count > startingPositions.length) {
+        throw new Error(`${count} snakes but only ${startingPositions.length} spawn cells`);
+    }
+
+    return Array.from({ length: count }, (_, i) =>
+        startingPositions[(offset + i) % startingPositions.length]);
 };
