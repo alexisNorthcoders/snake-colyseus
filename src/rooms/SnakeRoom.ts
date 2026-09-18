@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Player, Snake, Food, PlayerColors, Coordinates } from "./schema/SnakeState";
+import { GameState, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
 
@@ -108,8 +108,7 @@ export class SnakeRoom extends Room<GameState> {
         player.snake.isDead = false;
         player.snake.size = 1;
         player.snake.score = 0;
-        player.snake.tail.splice(0, player.snake.tail.length);
-
+        player.snake.setTail([]);
       });
 
       console.log("[SnakeRoom] All snake positions initialized");
@@ -214,17 +213,7 @@ export class SnakeRoom extends Room<GameState> {
         snake.y = gameConfig.scaleFactor - 1;
       }
 
-      if (snake.tail.length > 0) {
-        // Move tail segments backwards
-        for (let i = snake.tail.length - 1; i > 0; i--) {
-          snake.tail[i].x = snake.tail[i - 1].x;
-          snake.tail[i].y = snake.tail[i - 1].y;
-        }
-
-        // First segment moves to previous head position
-        snake.tail[0].x = prevX;
-        snake.tail[0].y = prevY;
-      }
+      snake.advanceTail({ x: prevX, y: prevY });
 
       this.checkSnakeCollision(player);
 
@@ -243,11 +232,7 @@ export class SnakeRoom extends Room<GameState> {
     if (food) {
       player.snake.size++;
       player.snake.score += foodScore[food.type];
-
-      const lastSegment = player.snake.tail[player.snake.tail.length - 1];
-      const tailX = lastSegment ? lastSegment.x : player.snake.x;
-      const tailY = lastSegment ? lastSegment.y : player.snake.y;
-      player.snake.tail.push(new Coordinates(tailX, tailY));
+      player.snake.growTail();
 
       this.respawnFood(food);
     }

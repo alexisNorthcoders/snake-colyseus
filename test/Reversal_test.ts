@@ -2,7 +2,7 @@ import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
-import { Coordinates, GameState, Snake } from "../src/rooms/schema/SnakeState";
+import { GameState, Snake } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { gameConfig } from "../src/gameConfig";
 import { joinOptions } from "./helpers";
@@ -25,8 +25,7 @@ describe("reverse turns", () => {
   ) {
     [snake.x, snake.y] = head;
     [snake.direction.x, snake.direction.y] = direction;
-    snake.tail.splice(0, snake.tail.length);
-    tail.forEach(([x, y]) => snake.tail.push(new Coordinates(x, y)));
+    snake.setTail(tail.map(([x, y]) => ({ x, y })));
   }
 
   /**

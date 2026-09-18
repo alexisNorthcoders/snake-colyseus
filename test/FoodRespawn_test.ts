@@ -3,7 +3,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import { getStateCallbacks } from "colyseus.js";
 
 import appConfig from "../src/app.config";
-import { Coordinates, Food, GameState } from "../src/rooms/schema/SnakeState";
+import { Food, GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { cellKey, gameConfig } from "../src/gameConfig";
 import { joinOptions, waitForState } from "./helpers";
@@ -49,7 +49,7 @@ describe("food respawn", () => {
     snake.y = 0;
     snake.direction.x = 1;
     snake.direction.y = 0;
-    snake.tail.splice(0, snake.tail.length);
+    snake.setTail([]);
 
     state.foodCoordinates.forEach((food, i) => {
       if (i === 0) {
@@ -97,13 +97,15 @@ describe("food respawn", () => {
     // the board lands on something occupied 199 times out of 200.
     const hole = cellKey(SIZE - 1, BOTTOM_ROW);
     const taken = occupiedCells(state);
+    const body = [];
     for (let x = 0; x < SIZE; x++) {
       for (let y = 0; y < SIZE; y++) {
         const cell = cellKey(x, y);
         if (cell === hole || taken.has(cell)) continue;
-        snake.tail.push(new Coordinates(x, y));
+        body.push({ x, y });
       }
     }
+    snake.setTail(body);
 
     tick(room);
 
@@ -130,7 +132,7 @@ describe("food respawn", () => {
 
       // Park the head one cell behind a pellet so the next tick eats it, and
       // keep the tail out of it so the snake never runs into itself.
-      snake.tail.splice(0, snake.tail.length);
+      snake.setTail([]);
       snake.x = (pellet.x - 1 + SIZE) % SIZE;
       snake.y = pellet.y;
 
