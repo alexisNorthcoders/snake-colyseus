@@ -128,4 +128,27 @@ describe("four-player rounds", () => {
     assert.strictEqual(state.aliveCount, 3);
     assert.strictEqual(new Set(state.players.map((p) => cellKey(p.snake.x, p.snake.y))).size, 3);
   });
+
+  it("sits a mid-round joiner out, then plays them next round", async () => {
+    const room: any = await colyseus.createRoom<GameState>("snake", {});
+    const first = await colyseus.connectTo(room, joinOptions("p0", "#ff0000"));
+    await colyseus.connectTo(room, joinOptions("p1", "#00ff00"));
+    room.setSimulationInterval(null);
+    const state: GameState = room.state;
+
+    first.send(SnakeRoom.messageTypes.START_GAME);
+    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
+    assert.strictEqual(state.aliveCount, 2);
+
+    await colyseus.connectTo(room, joinOptions("late", "#0000ff"));
+    const late = state.players[2].snake;
+    assert.ok(late.isDead, "the late joiner entered the round alive");
+    assert.strictEqual(state.aliveCount, 2);
+
+    state.hasGameStarted = false;
+    first.send(SnakeRoom.messageTypes.START_GAME);
+    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
+    assert.ok(!late.isDead);
+    assert.strictEqual(state.aliveCount, 3);
+  });
 });

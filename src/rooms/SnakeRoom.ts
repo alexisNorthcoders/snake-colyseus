@@ -172,6 +172,11 @@ export class SnakeRoom extends Room<GameState> {
       name: player.name
     });
 
+    // Arriving mid-round, the joiner sits it out: aliveCount was fixed at
+    // round start, so a live late snake would break the win check. The next
+    // round start revives everyone.
+    if (this.state.hasGameStarted) player.snake.isDead = true;
+
     this.state.players.push(player);
   }
 
