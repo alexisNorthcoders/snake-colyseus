@@ -16,7 +16,7 @@ export class SnakeRoom extends Room<GameState> {
     PONG: "pong"
   };
 
-  maxClients = 2;
+  maxClients = 4;
 
   // Server-only, not synced: where the next round starts reading the spawn
   // table. Clients never needed it.
@@ -183,6 +183,9 @@ export class SnakeRoom extends Room<GameState> {
         this.state.aliveCount--;
       }
       this.state.players.splice(index, 1);
+
+      // A leaver can be the one that leaves a single snake standing.
+      if (this.state.hasGameStarted && this.state.aliveCount <= 1) this.endRound();
     }
   }
 
@@ -342,19 +345,21 @@ export class SnakeRoom extends Room<GameState> {
     dying.forEach((player) => (player.snake.isDead = true));
     this.state.aliveCount -= dying.size;
 
-    if (this.state.aliveCount <= 1) {
-      // Game over - round has ended, whether or not a survivor remains
-      const winner = this.state.players.find(p => !p.snake.isDead);
-      const rankings = [...this.state.players]
-        .sort((a, b) => b.snake.score - a.snake.score)
-        .map(p => ({ id: p.id, name: p.name, score: p.snake.score }));
+    if (this.state.aliveCount <= 1) this.endRound();
+  }
 
-      this.broadcast(SnakeRoom.messageTypes.GAME_OVER, {
-        winnerId: winner?.id,
-        rankings
-      });
+  /** Announces the winner (if a snake is left) and the full ranking, and ends the round. */
+  private endRound() {
+    const winner = this.state.players.find(p => !p.snake.isDead);
+    const rankings = [...this.state.players]
+      .sort((a, b) => b.snake.score - a.snake.score)
+      .map(p => ({ id: p.id, name: p.name, score: p.snake.score }));
 
-      this.state.hasGameStarted = false;
-    }
+    this.broadcast(SnakeRoom.messageTypes.GAME_OVER, {
+      winnerId: winner?.id,
+      rankings
+    });
+
+    this.state.hasGameStarted = false;
   }
 }
