@@ -18,15 +18,6 @@ export const gameConfig = {
  */
 export const startingPositions = [{ x: 5, y: 5 }, { x: 15, y: 5 }, { x: 5, y: 15 }, { x: 15, y: 15 }]
 
-const snakeConfig = {
-    colours: {
-        head: 'yellow',
-        body: 'yellow',
-        eyes: 'yellow'
-    },
-    name: 'Server'
-}
-
 export const foodScore: { [key: string]: number } = {
     redApple: 10,
     greenApple: 20,
@@ -36,8 +27,6 @@ export const foodScore: { [key: string]: number } = {
     chili: 50,
     strawberry: 40
 };
-
-export const serverSnakeCollision = false;
 
 export interface Cell {
     x: number;

@@ -30,4 +30,10 @@ describe("synced state", () => {
     const state = await clientState();
     assert.strictEqual(state.players[0].snake.speed, undefined);
   });
+
+  it("does not carry the leftover server-snake type on players or snakes", async () => {
+    const state = await clientState();
+    assert.strictEqual(state.players[0].type, undefined);
+    assert.strictEqual(state.players[0].snake.type, undefined);
+  });
 });

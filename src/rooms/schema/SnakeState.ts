@@ -31,7 +31,6 @@ export class Snake extends Schema {
     @type("number") score: number = 0;
     @type("number") size: number = 0;
     @type(Coordinates) direction: Coordinates = new Coordinates();
-    @type("string") type: string = "player";
     @type("string") playerId: string = "";
 
     // Server-only, not synced: the direction the snake last actually moved in,
@@ -119,7 +118,6 @@ export class PlayerColors extends Schema {
 export class Player extends Schema {
     @type("string") id: string;
     @type("string") name: string;
-    @type("string") type: string = "player";
     @type(PlayerColors) colours: PlayerColors;
     @type(Snake) snake: Snake;
 
@@ -130,7 +128,6 @@ export class Player extends Schema {
         this.colours = colours;
         this.snake = new Snake();
         this.snake.playerId = id;  // Set the snake's playerId too
-        this.snake.type = "player";
     }
 }
 
