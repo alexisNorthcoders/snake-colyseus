@@ -234,7 +234,11 @@ export class SnakeRoom extends Room<GameState> {
       }
 
       this.checkSnakeCollision(player);
-      this.checkFoodCollision(player);
+
+      // A snake that died this tick doesn't eat on its way out: the points
+      // would still count towards the final ranking, and the pellet it landed
+      // on stays on the board.
+      if (!snake.isDead) this.checkFoodCollision(player);
     });
   }
 
