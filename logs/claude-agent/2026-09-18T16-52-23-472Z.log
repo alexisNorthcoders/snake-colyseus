@@ -1,0 +1,59 @@
+runId=2026-09-18T16-52-23-472Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #11
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/11
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Support 4-player rounds
+
+## Body
+## What to build
+
+A room should accept four players and play a correct four-player round end to end.
+
+The cap is currently two. Raising it is a one-line change, but it is only safe once the spawn table and head-to-head collision are fixed — the spawn table holds exactly four entries with one cell duplicated, and the index wraps modulo four, so a four-player round would put two snakes on the same cell *every* round. With no head-to-head detection those two then travel in permanent lockstep for the whole round.
+
+The client needs no changes: the scoreboard already iterates all players, starting is a button rather than a two-player gate, and rankings render whatever the server sends.
+
+## Acceptance criteria
+
+- [ ] A room accepts four players; a fifth is routed to a new room
+- [ ] All four spawn on distinct cells, every round, across repeated rounds
+- [ ] The live scoreboard shows all four players and their scores
+- [ ] Game over fires when one player is left, with correct winner and full four-player rankings
+- [ ] Repeated rounds ("play again") work with four players, including after someone leaves mid-round
+
+## Blocked by
+
+- #6 Give every snake a distinct spawn cell
+- #10 Detect head-to-head collisions
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] A room now seats four players and plays a full four-player round. The full suite passes (57 tests) and typechecking is clean. I committed to `claude/issue-11-support-4-player-rounds` in two commits, `f74fef8` and `9bc62b4`.
+
+**Changes in `src/rooms/SnakeRoom.ts`**
+- **Cap:** `maxClients` goes from 2 to 4, so a fifth player is routed to a new room.
+- **Leave ends the round:** the round now ends when a player leaving mid-round leaves one snake standing. Before, the survivor kept playing until it crashed. The winner and rankings logic moved into an `endRound()` method that both deaths and leaves use.
+- **Mid-round joiners:** a player who joins during a round now spectates as dead until the next round starts. Without this, they were alive but never counted in `aliveCount`, which breaks the win check. The code review found it, and it is easier to hit with four seats.
+
+**Tests (`test/FourPlayer_test.ts`)**
+- A room accepts four players and a fifth lands in a different room.
+- A client sees all four players and their scores.
+- Game over names the right winner and ranks all four.
+- Spawns stay distinct across six rounds, and play-again works after someone leaves.
+- A leave that leaves one snake standing ends the round.
+- A mid-round joiner sits out, then plays the next round.
+
+The existing spawn and collision tests already cover four seats through `room.maxClients`, so they needed no changes.
+
+**Not fixed** (both were already in the code)
+- **Duplicate `NEW_PLAYER`:** that handler calls `onJoin` with no capacity or duplicate check. A repeated message adds duplicate players.
+- **Leaver's score dropped:** game-over rankings only include players still in the room. A player who leaves mid-round drops out of the rankings, and their score with them.
+
+No restart of the bot or PM2 is needed.
+
+--- process end ok=true exit=0 timedOut=false ---

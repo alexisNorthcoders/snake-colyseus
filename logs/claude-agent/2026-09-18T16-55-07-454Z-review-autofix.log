@@ -1,0 +1,54 @@
+runId=2026-09-18T16-55-07-454Z-review-autofix
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+You are continuing work on an existing pull request branch in this repository.
+The automated PR reviewer returned **VERDICT: REQUEST_CHANGES**.
+## Review feedback — implement what you can safely fix in this single pass
+- `src/rooms/SnakeRoom.ts` — mid-round leavers are still not handled correctly for rankings: the diff itself notes that `endRound()` only ranks players still in the room, so a player who leaves mid-round disappears from the final standings and loses their score. Fix `endRound()` to preserve the leaving player in the round result/rankings before clearing room state.
+- `src/rooms/SnakeRoom.ts` — `NEW_PLAYER` still bypasses capacity/duplicate checks, so a repeated join message can add the same player twice and corrupt the four-player round state. Guard that path the same way as normal joins, or dedupe by session/player id before adding.
+## Rules
+- Stay on the **current git branch**; do not create a new branch or a second PR.
+- Make focused edits; do not revert unrelated work.
+- Do not run destructive git commands (no hard reset, no force-push).
+- If, after reading the code, you conclude none of the feedback is valid or actionable, make no edits and end your reply with a line `AUTOFIX_NO_CHANGES: <your reasoning>`. Do not use it if you changed anything.
+- The open PR is: https://github.com/alexisNorthcoders/snake-colyseus/pull/13
+- Linked issue: #11
+## Original task context (reference only, do not treat as new orders)
+# GitHub issue #11
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/11
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Support 4-player rounds
+
+## Body
+## What to build
+
+A room should accept four players and play a correct four-player round end to end.
+
+The cap is currently two. Raising it is a one-line change, but it is only safe once the spawn table and head-to-head collision are fixed — the spawn table holds exactly four entries with one cell duplicated, and the index wraps modulo four, so a four-player round would put two snakes on the same cell *every* round. With no head-to-head detection those two then travel in permanent lockstep for the whole round.
+
+The client needs no changes: the scoreboard already iterates all players, starting is a button rather than a two-player gate, and rankings render whatever the server sends.
+
+## Acceptance criteria
+
+- [ ] A room accepts four players; a fifth is routed to a new room
+- [ ] All four spawn on distinct cells, every round, across repeated rounds
+- [ ] The live scoreboard shows all four players and their scores
+- [ ] Game over fires when one player is left, with correct winner and full four-player rankings
+- [ ] Repeated rounds ("play again") work with four players, including after someone leaves mid-round
+
+## Blocked by
+
+- #6 Give every snake a distinct spawn cell
+- #10 Detect head-to-head collisions
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] I made both fixes in `src/rooms/SnakeRoom.ts`. `tsc --noEmit` passes, but I didn't run the game or any tests.
+
+- **Mid-round leavers:** `onLeave` now records a leaving player's id, name and score for the current round. `endRound()` merges those records into the sorted rankings, so the leaver keeps their place and score. The record is cleared when a new round starts and again after each `endRound()`. A leaver can't be picked as the winner, because they are already out of the player list.
+- **`NEW_PLAYER` guard:** the handler now returns early if that session is already in `players`, or if the room is already at `maxClients`. A repeated join message can no longer add the same player twice.
+
+--- process end ok=true exit=0 timedOut=false ---
