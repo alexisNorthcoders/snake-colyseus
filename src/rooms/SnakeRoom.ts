@@ -186,42 +186,56 @@ export class SnakeRoom extends Room<GameState> {
     }
   }
 
+  /**
+   * One tick, resolved simultaneously: every live snake moves, then collisions
+   * are judged against where everyone ended up, then the survivors eat. Judging
+   * each snake as it moved made the outcome depend on join order and let two
+   * heads meeting on one cell slip past each other.
+   */
   update() {
     if (!this.state.hasGameStarted) return;
 
-    this.state.players.forEach((player) => {
-      const snake = player.snake;
+    const live = this.state.players.filter((player) => player.snake && !player.snake.isDead);
 
-      if (!snake || snake.isDead) return;
+    const moves = new Map(live.map((player) => {
+      const from = cellKey(player.snake.x, player.snake.y);
+      this.moveSnake(player.snake);
+      return [player, { from, to: cellKey(player.snake.x, player.snake.y) }];
+    }));
 
-      const prevX = snake.x;
-      const prevY = snake.y;
+    const dying = this.findCrashed(moves);
 
-      snake.x += snake.direction.x;
-      snake.y += snake.direction.y;
-      snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
-
-      if (snake.x >= gameConfig.scaleFactor) {
-        snake.x = 0;
-      } else if (snake.x < 0) {
-        snake.x = gameConfig.scaleFactor - 1;
-      }
-
-      if (snake.y >= gameConfig.scaleFactor) {
-        snake.y = 0;
-      } else if (snake.y < 0) {
-        snake.y = gameConfig.scaleFactor - 1;
-      }
-
-      snake.advanceTail({ x: prevX, y: prevY });
-
-      this.checkSnakeCollision(player);
-
-      // A snake that died this tick doesn't eat on its way out: the points
-      // would still count towards the final ranking, and the pellet it landed
-      // on stays on the board.
-      if (!snake.isDead) this.checkFoodCollision(player);
+    // A snake that died this tick doesn't eat on its way out: the points
+    // would still count towards the final ranking, and the pellet it landed
+    // on stays on the board.
+    live.forEach((player) => {
+      if (!dying.has(player)) this.checkFoodCollision(player);
     });
+
+    this.handleDeaths(dying);
+  }
+
+  private moveSnake(snake: Snake) {
+    const prevX = snake.x;
+    const prevY = snake.y;
+
+    snake.x += snake.direction.x;
+    snake.y += snake.direction.y;
+    snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
+
+    if (snake.x >= gameConfig.scaleFactor) {
+      snake.x = 0;
+    } else if (snake.x < 0) {
+      snake.x = gameConfig.scaleFactor - 1;
+    }
+
+    if (snake.y >= gameConfig.scaleFactor) {
+      snake.y = 0;
+    } else if (snake.y < 0) {
+      snake.y = gameConfig.scaleFactor - 1;
+    }
+
+    snake.advanceTail({ x: prevX, y: prevY });
   }
 
   private checkFoodCollision(player: Player) {
@@ -287,39 +301,46 @@ export class SnakeRoom extends Room<GameState> {
     return occupied;
   }
 
-  private checkSnakeCollision(player: Player) {
-    // Check self collision with tail
-    const selfCollision = player.snake.tail.some(segment =>
-      segment.x === player.snake.x && segment.y === player.snake.y
-    );
+  /**
+   * The live snakes, given with the cell each head moved from and to this
+   * tick, that crashed: landed on a body segment (their own or anyone else's),
+   * on another head, or swapped cells with another head — two tailless snakes
+   * side by side would otherwise cross without ever sharing a cell. Every
+   * occupied cell is counted once up front, so the cost follows the total
+   * number of segments rather than players squared.
+   *
+   * Dead snakes aren't counted: their bodies stay on the board but can be
+   * passed through.
+   */
+  private findCrashed(moves: Map<Player, { from: string; to: string }>) {
+    const bodies = new Set<string>();
+    const heads = new Map<string, number>();
+    const steps = new Set<string>();
 
-    if (selfCollision) {
-      this.handleSnakeDeath(player);
-      return;
-    }
-
-    // Check collision with other snakes
-    this.state.players.forEach(otherPlayer => {
-      if (otherPlayer.id === player.id ||
-        otherPlayer.snake.isDead ||
-        (otherPlayer.snake.type === "server")) {
-        return;
-      }
-
-      // Check collision with other snake's tail
-      const otherSnakeCollision = otherPlayer.snake.tail.some(segment =>
-        segment.x === player.snake.x && segment.y === player.snake.y
-      );
-
-      if (otherSnakeCollision) {
-        this.handleSnakeDeath(player);
-      }
+    moves.forEach(({ from, to }, { snake }) => {
+      heads.set(to, (heads.get(to) ?? 0) + 1);
+      steps.add(`${from}>${to}`);
+      snake.tail.forEach((segment) => bodies.add(cellKey(segment.x, segment.y)));
     });
+
+    const crashed = new Set<Player>();
+    moves.forEach(({ from, to }, player) => {
+      const swapped = from !== to && steps.has(`${to}>${from}`);
+      if (bodies.has(to) || (heads.get(to) ?? 0) > 1 || swapped) crashed.add(player);
+    });
+    return crashed;
   }
 
-  private handleSnakeDeath(player: Player) {
-    player.snake.isDead = true;
-    this.state.aliveCount--;
+  /**
+   * Kills everyone in `dying` before deciding whether the round is over, so
+   * snakes that die together all miss out on the win — ending the round on the
+   * first of them would crown one that is about to die too.
+   */
+  private handleDeaths(dying: Set<Player>) {
+    if (dying.size === 0) return;
+
+    dying.forEach((player) => (player.snake.isDead = true));
+    this.state.aliveCount -= dying.size;
 
     if (this.state.aliveCount <= 1) {
       // Game over - round has ended, whether or not a survivor remains

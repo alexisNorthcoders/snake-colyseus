@@ -40,11 +40,10 @@ describe("death tick", () => {
   }
 
   /**
-   * Players move in join order, so the survivor goes first while the round is
-   * still live: it heads right from (10,10) into pellet 1 at (11,10), dragging
-   * its body along row 10. The victim then heads down from (9,9) onto (9,10),
-   * where pellet 0 sits under the survivor's freshly moved body, and dies on
-   * the pellet's cell. The other pellets are parked along the bottom row.
+   * The survivor heads right from (10,10) into pellet 1 at (11,10), dragging
+   * its body along row 10. The victim heads down from (9,9) onto (9,10), where
+   * pellet 0 sits under the survivor's freshly moved body, and dies on the
+   * pellet's cell. The other pellets are parked along the bottom row.
    */
   function arrangeDeathOnPellet(state: GameState) {
     const [survivor, victim] = state.players.map((player) => player.snake);
