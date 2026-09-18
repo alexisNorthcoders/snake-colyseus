@@ -1,4 +1,5 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
+import { DirectionVector } from "../../contants";
 
 export class Coordinates extends Schema {
     @type("number") x: number = 0;
@@ -22,6 +23,11 @@ export class Snake extends Schema {
     @type(Coordinates) direction: Coordinates = new Coordinates();  // Changed to use Coordinates
     @type("string") type: string = "player";
     @type("string") playerId: string = "";
+
+    // Server-only, not synced: the direction the snake last actually moved in,
+    // which a turn is checked against. `direction` holds the latest key, and
+    // two keys inside one tick could otherwise add up to a reversal.
+    movedDirection: DirectionVector = { x: 0, y: 0 };
 }
 
 export class PlayerColors extends Schema {

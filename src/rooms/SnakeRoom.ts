@@ -59,25 +59,18 @@ export class SnakeRoom extends Room<GameState> {
       const player = this.state.players.find(p => p.id === client.sessionId);
 
       if (player && player.snake && !player.snake.isDead) {
-        // Update snake direction based on key
-        switch (data.key) {
-          case 'u': // up
-            player.snake.direction.x = 0;
-            player.snake.direction.y = -1;
-            break;
-          case 'd': // down
-            player.snake.direction.x = 0;
-            player.snake.direction.y = 1;
-            break;
-          case 'l': // left
-            player.snake.direction.x = -1;
-            player.snake.direction.y = 0;
-            break;
-          case 'r': // right
-            player.snake.direction.x = 1;
-            player.snake.direction.y = 0;
-            break;
-        }
+        // hasOwn, not a plain lookup: a key like "toString" would otherwise
+        // find a prototype method and write undefined into the synced state.
+        if (!Object.hasOwn(directionMap, data.key)) return;
+        const turn = directionMap[data.key as Direction];
+
+        // Reversing would step the head straight back onto the body, so a
+        // reversal is ignored rather than left to kill the snake.
+        const moved = player.snake.movedDirection;
+        if (turn.x === -moved.x && turn.y === -moved.y) return;
+
+        player.snake.direction.x = turn.x;
+        player.snake.direction.y = turn.y;
       }
     });
 
@@ -105,6 +98,7 @@ export class SnakeRoom extends Room<GameState> {
         // Set initial direction to right
         player.snake.direction.x = 1;
         player.snake.direction.y = 0;
+        player.snake.movedDirection = { x: 1, y: 0 };
 
         player.snake.isDead = false;
         player.snake.size = 1;
@@ -208,6 +202,7 @@ export class SnakeRoom extends Room<GameState> {
 
       snake.x += snake.direction.x;
       snake.y += snake.direction.y;
+      snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
 
       if (snake.x >= gameConfig.scaleFactor) {
         snake.x = 0;

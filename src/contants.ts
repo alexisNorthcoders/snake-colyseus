@@ -7,7 +7,7 @@ export const directionMap: Record<Direction, DirectionVector> = {
 
 export type Direction = "l" | "r" | "u" | "d";
 
-interface DirectionVector {
+export interface DirectionVector {
     x: number;
     y: number;
 }
