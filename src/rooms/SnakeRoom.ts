@@ -2,7 +2,6 @@ import { Room, Client } from "@colyseus/core";
 import { GameState, Player, Snake, Food, PlayerColors, Coordinates } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
-// Removed import of Player from './schema/Player'
 
 export class SnakeRoom extends Room<GameState> {
   // Add type definition for your message types
@@ -18,6 +17,10 @@ export class SnakeRoom extends Room<GameState> {
   };
 
   maxClients = 2;
+
+  // Server-only, not synced: where the next round starts reading the spawn
+  // table. Clients never needed it.
+  private spawnOffset = 0;
 
   onCreate(options: any) {
     this.setState(new GameState());
@@ -89,8 +92,8 @@ export class SnakeRoom extends Room<GameState> {
 
       // Handed out together so no two snakes share a cell; the offset rolls
       // on so the same seat doesn't start in the same corner every round.
-      const spawns = spawnCells(this.state.players.length, this.state.nextPositionIndex);
-      this.state.nextPositionIndex = (this.state.nextPositionIndex + spawns.length) % startingPositions.length;
+      const spawns = spawnCells(this.state.players.length, this.spawnOffset);
+      this.spawnOffset = (this.spawnOffset + spawns.length) % startingPositions.length;
 
       this.state.players.forEach((player, i) => {
         const position = spawns[i];

@@ -71,7 +71,11 @@ describe("round spawns", () => {
     );
   });
 
-  it("keeps spawns distinct across repeated rounds", async () => {
+  /**
+   * Seats a full room, then plays `startingPositions.length + 1` rounds — enough
+   * to wrap the spawn rotation — handing each round's head cells to `check`.
+   */
+  async function everyRound(check: (heads: Array<{ x: number; y: number }>, round: number, seats: number) => void) {
     const room: any = await colyseus.createRoom<GameState>("snake", {});
     const clients = [];
     for (let seat = 0; seat < room.maxClients; seat++) {
@@ -84,14 +88,29 @@ describe("round spawns", () => {
       clients[0].send(SnakeRoom.messageTypes.START_GAME);
       await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
 
-      const heads = state.players.map((p) => ({ x: p.snake.x, y: p.snake.y }));
+      check(state.players.map((p) => ({ x: p.snake.x, y: p.snake.y })), round, clients.length);
+
+      state.hasGameStarted = false;
+    }
+  }
+
+  it("keeps spawns distinct across repeated rounds", async () => {
+    await everyRound((heads, round) =>
       assert.strictEqual(
         distinctCells(heads),
         heads.length,
         `round ${round + 1} spawned two snakes on one cell`
-      );
+      )
+    );
+  });
 
-      state.hasGameStarted = false;
-    }
+  it("rotates the spawn offset from one round to the next", async () => {
+    await everyRound((heads, round, seats) =>
+      assert.deepStrictEqual(
+        heads,
+        spawnCells(seats, (round * seats) % startingPositions.length),
+        `round ${round + 1} did not start where the rotation left off`
+      )
+    );
   });
 });

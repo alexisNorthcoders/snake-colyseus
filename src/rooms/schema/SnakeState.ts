@@ -19,8 +19,7 @@ export class Snake extends Schema {
     @type("boolean") isDead: boolean = false;
     @type("number") score: number = 0;
     @type("number") size: number = 0;
-    @type(Coordinates) speed: Coordinates = new Coordinates();
-    @type(Coordinates) direction: Coordinates = new Coordinates();  // Changed to use Coordinates
+    @type(Coordinates) direction: Coordinates = new Coordinates();
     @type("string") type: string = "player";
     @type("string") playerId: string = "";
 
@@ -70,7 +69,6 @@ export class Food extends Schema {
 
 export class GameState extends Schema {
     @type("boolean") hasGameStarted: boolean = false;
-    @type("number") nextPositionIndex: number = 0;
     @type("number") aliveCount: number = 0;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();
