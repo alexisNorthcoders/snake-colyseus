@@ -109,7 +109,7 @@ export class SnakeRoom extends Room<GameState> {
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
 
-      if (this.state.phase !== "lobby" || !this.transition("playing")) {
+      if (!this.transition("playing")) {
         // A round is already in progress (e.g. two clients both clicked
         // "Play Again" before either received the gameStarted broadcast) —
         // ignore the duplicate request instead of resetting mid-round state.
