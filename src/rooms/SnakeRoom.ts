@@ -4,12 +4,13 @@ import { Direction, directionMap } from "../contants";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
 
 // Which phase may follow which. "countdown" is declared for later; nothing
-// enters it yet, so lobby goes straight to playing.
+// enters it yet, so lobby goes straight to playing. "ended" is terminal: rooms
+// are single-use, and Play Again means a fresh room.
 const transitions: Record<Phase, Phase[]> = {
   lobby: ["countdown", "playing"],
   countdown: ["playing", "lobby"],
   playing: ["ended"],
-  ended: ["lobby"]
+  ended: []
 };
 
 export class SnakeRoom extends Room<GameState> {
@@ -35,10 +36,6 @@ export class SnakeRoom extends Room<GameState> {
   // score still appears in the final rankings. Cleared at each round start.
   private roundLeavers: { id: string; name: string; score: number }[] = [];
 
-  // Whether an ended round leads back to the lobby (Play Again in the same
-  // room). Set from the room options; on unless explicitly turned off.
-  private reusable = true;
-
   /** The only place the phase changes. Returns false, doing nothing, if `to` can't follow the current phase. */
   private transition(to: Phase) {
     if (!transitions[this.state.phase].includes(to)) return false;
@@ -51,7 +48,6 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   onCreate(options: any) {
-    this.reusable = options?.reusable !== false;
     this.setState(new GameState());
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
@@ -110,11 +106,15 @@ export class SnakeRoom extends Room<GameState> {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
 
       if (!this.transition("playing")) {
-        // A round is already in progress (e.g. two clients both clicked
-        // "Play Again" before either received the gameStarted broadcast) —
-        // ignore the duplicate request instead of resetting mid-round state.
+        // A round is already in progress or over (e.g. a duplicate click
+        // before the gameStarted broadcast arrived, or a stale request after
+        // the round ended) — ignore it instead of resetting state.
         return;
       }
+
+      // Matchmaking must never place anyone into a running round. Never
+      // unlocked: the room is single-use.
+      this.lock();
 
       this.roundLeavers = [];
       this.state.aliveCount = this.state.players.length; // Set initial alive count
@@ -149,6 +149,7 @@ export class SnakeRoom extends Room<GameState> {
     this.onMessage(SnakeRoom.messageTypes.NEW_PLAYER, (client, message) => {
       // Same guards as a normal join: a repeated message must not add the
       // same player twice, and the room can't exceed its capacity.
+      if (this.state.phase !== "lobby") return;
       if (this.state.players.some(p => p.id === client.sessionId)) return;
       if (this.state.players.length >= this.maxClients) return;
 
@@ -205,11 +206,6 @@ export class SnakeRoom extends Room<GameState> {
       sessionId: client.sessionId,
       name: player.name
     });
-
-    // Arriving mid-round, the joiner sits it out: aliveCount was fixed at
-    // round start, so a live late snake would break the win check. The next
-    // round start revives everyone.
-    if (this.inRound) player.snake.isDead = true;
 
     this.state.players.push(player);
   }
@@ -405,6 +401,5 @@ export class SnakeRoom extends Room<GameState> {
     });
 
     this.transition("ended");
-    if (this.reusable) this.transition("lobby");
   }
 }
