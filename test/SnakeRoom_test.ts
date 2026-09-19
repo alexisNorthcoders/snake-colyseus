@@ -179,13 +179,13 @@ describe("SnakeRoom patch cadence", () => {
     // must already hold the state the round starts from. Snapshot the client's
     // view at the instant of delivery rather than afterwards, or a later patch
     // would paper over a message that arrived too early.
-    let stateOnDelivery: { hasGameStarted: boolean; directionX: number };
+    let stateOnDelivery: { phase: string; directionX: number };
     const gameStarted = client1
       .waitForMessage(SnakeRoom.messageTypes.GAME_STARTED)
       .then(() => {
         const self = client1.state.players.find((p) => p.id === client1.sessionId);
         stateOnDelivery = {
-          hasGameStarted: client1.state.hasGameStarted,
+          phase: client1.state.phase,
           directionX: self.snake.direction.x
         };
       });
@@ -194,9 +194,9 @@ describe("SnakeRoom patch cadence", () => {
     await gameStarted;
 
     assert.strictEqual(
-      stateOnDelivery.hasGameStarted,
-      true,
-      "client still saw hasGameStarted=false when gameStarted arrived"
+      stateOnDelivery.phase,
+      "playing",
+      "client still saw phase=lobby when gameStarted arrived"
     );
     assert.strictEqual(
       stateOnDelivery.directionX,

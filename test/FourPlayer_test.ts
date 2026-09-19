@@ -99,7 +99,7 @@ describe("four-player rounds", () => {
       await start();
       const cells = new Set(state.players.map((p) => cellKey(p.snake.x, p.snake.y)));
       assert.strictEqual(cells.size, state.players.length, `round ${round + 1} shared a cell`);
-      state.hasGameStarted = false;
+      state.phase = "lobby";
     }
 
     await start();
@@ -121,10 +121,10 @@ describe("four-player rounds", () => {
     assert.strictEqual(gameOvers.length, 1, "leaving did not end the round");
     assert.strictEqual(gameOvers[0].winnerId, state.players[0].id);
     assert.strictEqual(gameOvers[0].rankings.length, 3);
-    assert.strictEqual(state.hasGameStarted, false);
+    assert.strictEqual(state.phase, "lobby");
 
     await start();
-    assert.strictEqual(state.hasGameStarted, true);
+    assert.strictEqual(state.phase, "playing");
     assert.strictEqual(state.aliveCount, 3);
     assert.strictEqual(new Set(state.players.map((p) => cellKey(p.snake.x, p.snake.y))).size, 3);
   });
@@ -145,7 +145,7 @@ describe("four-player rounds", () => {
     assert.ok(late.isDead, "the late joiner entered the round alive");
     assert.strictEqual(state.aliveCount, 2);
 
-    state.hasGameStarted = false;
+    state.phase = "lobby";
     first.send(SnakeRoom.messageTypes.START_GAME);
     await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
     assert.ok(!late.isDead);

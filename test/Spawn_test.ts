@@ -90,7 +90,7 @@ describe("round spawns", () => {
 
       check(state.players.map((p) => ({ x: p.snake.x, y: p.snake.y })), round, clients.length);
 
-      state.hasGameStarted = false;
+      state.phase = "lobby";
     }
   }
 

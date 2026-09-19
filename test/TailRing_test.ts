@@ -158,7 +158,7 @@ describe("tail ring", () => {
     place(snake, [10, 2], [1, 0], bodyBehind(10, 2, 4));
     room.update();
 
-    state.hasGameStarted = false;
+    state.phase = "lobby";
     clients[0].send(SnakeRoom.messageTypes.START_GAME);
     await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
 
