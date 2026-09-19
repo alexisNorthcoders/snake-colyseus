@@ -1,0 +1,41 @@
+runId=2026-09-19T18-13-24-424Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #14
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/14
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Room phase model (prefactor)
+
+## Body
+## What to build
+
+Prefactor for single-use rooms. The room's lifecycle becomes a single synced `phase` field — `lobby | countdown | playing | ended` — replacing the `hasGameStarted` boolean. Every transition goes through one method on the room, and a `reusable` room option decides what `ended` leads to.
+
+In this ticket `reusable` preserves today's behaviour (`ended` → `lobby`, so "Play Again" in the same room still works) and `countdown` is declared but unused. No player-visible change.
+
+`reusable` is the hook for future private friend rooms (`ended` → `lobby`, `setPrivate()` + join by code); do not build private rooms here.
+
+## Acceptance criteria
+
+- [ ] `phase` is synced in the room state; `hasGameStarted` is removed
+- [ ] All phase changes go through one transition method; invalid transitions are ignored
+- [ ] `reusable` room option exists and drives what `ended` leads to
+- [ ] Existing tests migrated from `hasGameStarted` to `phase` and green
+- [ ] Gameplay behaviour unchanged
+
+## Blocked by
+
+None (can start immediately). Client counterpart alexisNorthcoders/snake-phaser#91 must follow before the two are deployed together.
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v node_modules | head -50 && grep -rn "hasGameStarted" --i…
+[out] → Bash: cat src/rooms/SnakeRoom.ts && sed -n 120,170p src/rooms/schema/SnakeState.ts &&…
+[out] → Bash: python3 - <<'E' import re p='src/rooms/schema/SnakeState.ts' s=open(p).read() s…
+[out] → Bash: python3 - <<'E' p='src/rooms/SnakeRoom.ts' s=open(p).read() s=s.replace(''' if …
+[out] assistant: Add a test file for phase behaviour.
+[out] → Bash: cat > test/Phase_test.ts <<'E' import assert from "assert"; import { ColyseusTe…
+[out] → Bash: sed -n 121,124p test/FourPlayer_test.ts; git stash -u -q && npx mocha -r tsx te…
