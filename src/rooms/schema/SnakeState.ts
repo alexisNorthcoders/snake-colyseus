@@ -138,8 +138,10 @@ export class Food extends Schema {
     @type("string") type: string = "redApple";
 }
 
+export type Phase = "lobby" | "countdown" | "playing" | "ended";
+
 export class GameState extends Schema {
-    @type("boolean") hasGameStarted: boolean = false;
+    @type("string") phase: Phase = "lobby";
     @type("number") aliveCount: number = 0;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();

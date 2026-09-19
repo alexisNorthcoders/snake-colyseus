@@ -1,7 +1,16 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
+
+// Which phase may follow which. "countdown" is declared for later; nothing
+// enters it yet, so lobby goes straight to playing.
+const transitions: Record<Phase, Phase[]> = {
+  lobby: ["countdown", "playing"],
+  countdown: ["playing", "lobby"],
+  playing: ["ended"],
+  ended: ["lobby"]
+};
 
 export class SnakeRoom extends Room<GameState> {
   // Add type definition for your message types
@@ -26,7 +35,23 @@ export class SnakeRoom extends Room<GameState> {
   // score still appears in the final rankings. Cleared at each round start.
   private roundLeavers: { id: string; name: string; score: number }[] = [];
 
+  // Whether an ended round leads back to the lobby (Play Again in the same
+  // room). Set from the room options; on unless explicitly turned off.
+  private reusable = true;
+
+  /** The only place the phase changes. Returns false, doing nothing, if `to` can't follow the current phase. */
+  private transition(to: Phase) {
+    if (!transitions[this.state.phase].includes(to)) return false;
+    this.state.phase = to;
+    return true;
+  }
+
+  private get inRound() {
+    return this.state.phase === "playing";
+  }
+
   onCreate(options: any) {
+    this.reusable = options?.reusable !== false;
     this.setState(new GameState());
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
@@ -46,7 +71,7 @@ export class SnakeRoom extends Room<GameState> {
     this.patchRate = null;
 
     // Run a single simulation loop for the room's lifetime; update() itself
-    // is a no-op while hasGameStarted is false. Previously this was (re)started
+    // is a no-op while no round is playing. Previously this was (re)started
     // on every "startGame" message, and since Colyseus's setSimulationInterval
     // doesn't clear the previous interval, each "Play Again" click left the
     // old loop running alongside the new one — stacking update() calls per
@@ -84,14 +109,13 @@ export class SnakeRoom extends Room<GameState> {
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
 
-      if (this.state.hasGameStarted) {
+      if (!this.transition("playing")) {
         // A round is already in progress (e.g. two clients both clicked
         // "Play Again" before either received the gameStarted broadcast) —
         // ignore the duplicate request instead of resetting mid-round state.
         return;
       }
 
-      this.state.hasGameStarted = true;
       this.roundLeavers = [];
       this.state.aliveCount = this.state.players.length; // Set initial alive count
 
@@ -142,7 +166,7 @@ export class SnakeRoom extends Room<GameState> {
 
     this.onMessage(SnakeRoom.messageTypes.UPDATE_PLAYER, (client, message) => {
       const player = this.state.players.find(p => p.id === client.sessionId);
-      if (!player || this.state.hasGameStarted) return;
+      if (!player || this.state.phase !== "lobby") return;
 
       if (message.colours?.head) player.colours.head = message.colours.head;
       if (message.colours?.body) player.colours.body = message.colours.body;
@@ -185,7 +209,7 @@ export class SnakeRoom extends Room<GameState> {
     // Arriving mid-round, the joiner sits it out: aliveCount was fixed at
     // round start, so a live late snake would break the win check. The next
     // round start revives everyone.
-    if (this.state.hasGameStarted) player.snake.isDead = true;
+    if (this.inRound) player.snake.isDead = true;
 
     this.state.players.push(player);
   }
@@ -194,16 +218,16 @@ export class SnakeRoom extends Room<GameState> {
     const index = this.state.players.findIndex(p => p.id === client.sessionId);
     if (index !== -1) {
       const player = this.state.players[index];
-      if (!player.snake.isDead && this.state.hasGameStarted) {
+      if (!player.snake.isDead && this.inRound) {
         this.state.aliveCount--;
       }
-      if (this.state.hasGameStarted) {
+      if (this.inRound) {
         this.roundLeavers.push({ id: player.id, name: player.name, score: player.snake.score });
       }
       this.state.players.splice(index, 1);
 
       // A leaver can be the one that leaves a single snake standing.
-      if (this.state.hasGameStarted && this.state.aliveCount <= 1) this.endRound();
+      if (this.inRound && this.state.aliveCount <= 1) this.endRound();
     }
   }
 
@@ -214,7 +238,7 @@ export class SnakeRoom extends Room<GameState> {
    * heads meeting on one cell slip past each other.
    */
   update() {
-    if (!this.state.hasGameStarted) return;
+    if (!this.inRound) return;
 
     const live = this.state.players.filter((player) => player.snake && !player.snake.isDead);
 
@@ -380,6 +404,7 @@ export class SnakeRoom extends Room<GameState> {
       rankings
     });
 
-    this.state.hasGameStarted = false;
+    this.transition("ended");
+    if (this.reusable) this.transition("lobby");
   }
 }

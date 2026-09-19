@@ -138,7 +138,7 @@ describe("food respawn", () => {
 
       tick(room);
 
-      assert.ok(state.hasGameStarted, `the round ended after ${eaten} pellets`);
+      assert.strictEqual(state.phase, "playing", `the round ended after ${eaten} pellets`);
       assert.strictEqual(
         state.foodCoordinates.length,
         gameConfig.foodStorage,

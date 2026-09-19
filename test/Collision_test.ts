@@ -114,7 +114,7 @@ describe("snake collision", () => {
       room.update();
 
       assert.strictEqual(state.aliveCount, 0);
-      assert.strictEqual(state.hasGameStarted, false);
+      assert.strictEqual(state.phase, "lobby");
       assert.strictEqual(gameOvers.length, 1, "expected exactly one game-over broadcast");
       assert.strictEqual(gameOvers[0].winnerId, undefined, "a snake that died was named winner");
     });
