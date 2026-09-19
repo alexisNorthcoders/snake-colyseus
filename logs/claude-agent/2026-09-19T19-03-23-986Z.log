@@ -1,0 +1,54 @@
+runId=2026-09-19T19-03-23-986Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #16
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/16
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Server countdown on Start
+
+## Body
+## What to build
+
+Pressing Start no longer begins play immediately: it moves the room from `lobby` to `countdown`, locks the room (the lock moves here from round start), assigns spawns, and runs a server-owned countdown. A synced `countdown` value goes 3 → 0, decremented by the server once per second; at 0 the phase becomes `playing` and snakes start moving. The countdown length lives in the game config so tests can shorten it.
+
+During the countdown:
+- direction input is accepted and becomes the snake's first move (default still right); reversal rules still apply
+- name and colour updates are refused
+- a player who leaves is removed and the countdown continues
+
+## Acceptance criteria
+
+- [ ] `startGame` in `lobby` → `countdown`; room locks and spawns are assigned immediately
+- [ ] `countdown` synced value ticks 3,2,1,0 at 1 s intervals; phase becomes `playing` at 0
+- [ ] Duplicate `startGame` during `countdown` is ignored
+- [ ] Direction set during the countdown is used on the first tick
+- [ ] Colour/name updates refused outside `lobby`
+- [ ] Leaving during the countdown removes the player; countdown continues
+- [ ] Countdown length is configurable; tests use a short value
+
+## Blocked by
+
+- #15
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v -e '^logs/' -e node_modules | head -60 && cat CONTEXT.md…
+[out] → Bash: cat src/rooms/SnakeRoom.ts src/gameConfig.ts src/rooms/schema/SnakeState.ts tes…
+[out] → Bash: grep -n "START_GAME\|transition(\|phase" test/*.ts | grep -v Phase_test
+[out] → Bash: python3 - <<'E' import re p='src/rooms/SnakeRoom.ts' s=open(p).read() s=s.repla…
+[out] → Bash: python3 - <<'E' p='src/rooms/SnakeRoom.ts' s=open(p).read() s=s.replace(''' thi…
+[out] assistant: Running the suite; Phase tests use `transition("playing")` directly from lobby, which the new table forbids. I'll update them to go through countdown.
+[out] → Bash: python3 - <<'E' p='test/Phase_test.ts' s=open(p).read() s=s.replace(''' assert.…
+[out] → Bash: cat src/contants.ts | head -20
+[out] → Bash: sed -i 's/"ArrowUp"/"u"/; s/"ArrowLeft"/"l"/' test/Countdown_test.ts && sed -i …
+[out] → Bash: git add src test package.json && git commit -q -m "feat: Server countdown on St…
+[out] → Skill: code-review
+[out] → Bash: git diff master...HEAD --stat; git diff master...HEAD -- . ':!logs' | head -700
+[out] → Bash: cat -n src/rooms/SnakeRoom.ts | sed -n 55,115p; cat -n src/rooms/SnakeRoom.ts |…
+[out] assistant: Pressing Start now moves the room from `lobby` to `countdown` instead of straight to `playing`. The full suite passes (70 tests) and `tsc` is clean. It's committed on `claude/issue-16-server-countdown-on-start` as `e88fed9`; I haven't pushed or merged it. - **On Start:** the room locks, spawns are assigned, and `gameStarted` is broadcast right away. - **Countdown:** a synced `countdown` value ticks down from 3 to 0, and at 0 the phase becomes `playing`. The length and the time between counts ar…
+[out] --- result: success turns=11 cost=$0.3564 ---
+
+--- process end ok=true exit=0 timedOut=false ---
