@@ -165,21 +165,4 @@ describe("tail ring", () => {
     assert.deepStrictEqual(tailCells(snake), []);
     assert.strictEqual(snake.tailCursor, 0);
   });
-
-  it("lets a client joining mid-round read tails from the full snapshot", async () => {
-    const { room, state } = await frozenRoom(1);
-    const snake = state.players[0].snake;
-    place(snake, [10, 2], [1, 0], bodyBehind(10, 2, 5));
-
-    // Leave the cursor part-way round the ring.
-    room.update();
-    room.update();
-    assert.notStrictEqual(snake.tailCursor, 0, "the cursor never left slot 0");
-
-    const late = await colyseus.connectTo(room, joinOptions("late", "#00ff00"));
-    await waitForState(late, () => late.state.players.length === 2, "the running round");
-
-    // Decoded into the client's own reflected classes, not the server's Snake.
-    assert.deepStrictEqual(tailCells(late.state.players[0].snake), tailCells(snake));
-  });
 });

@@ -39,21 +39,61 @@ describe("room phase", () => {
     assert.strictEqual(state.phase, "playing");
   });
 
-  it("returns to the lobby after a round when reusable (the default)", async () => {
+  it("ends terminally: a finished round never returns to the lobby", async () => {
     const { room, state } = await twoPlayerRoom();
     room.transition("playing");
     room.endRound();
-    assert.strictEqual(state.phase, "lobby");
+    assert.strictEqual(state.phase, "ended");
+    assert.strictEqual(room.transition("lobby"), false);
+    assert.strictEqual(room.transition("playing"), false);
   });
 
-  it("stays ended after a round when not reusable", async () => {
-    const { room, c1, state } = await twoPlayerRoom({ reusable: false });
+  it("ignores startGame after the round ended", async () => {
+    const { room, c1, state } = await twoPlayerRoom();
     room.transition("playing");
     room.endRound();
-    assert.strictEqual(state.phase, "ended");
 
     c1.send(SnakeRoom.messageTypes.START_GAME);
     await new Promise((r) => setTimeout(r, 100));
     assert.strictEqual(state.phase, "ended");
+  });
+
+  it("locks when the round starts, so matchmaking picks another room", async () => {
+    const { room, c1 } = await twoPlayerRoom();
+    const before = await colyseus.sdk.joinOrCreate("snake", joinOptions("x", "#0000ff"));
+    assert.strictEqual(before.roomId, room.roomId);
+
+    c1.send(SnakeRoom.messageTypes.START_GAME);
+    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
+    assert.strictEqual(room.locked, true);
+
+    const during = await colyseus.sdk.joinOrCreate("snake", joinOptions("y", "#ffff00"));
+    assert.notStrictEqual(during.roomId, room.roomId);
+
+    room.endRound();
+    assert.strictEqual(room.locked, true, "the room unlocked after the round ended");
+    const after = await colyseus.sdk.joinOrCreate("snake", joinOptions("z", "#00ffff"));
+    assert.notStrictEqual(after.roomId, room.roomId);
+  });
+
+  it("ignores newPlayer once the round has started", async () => {
+    const { room, c1, state } = await twoPlayerRoom();
+    room.transition("playing");
+    c1.send(SnakeRoom.messageTypes.NEW_PLAYER, { player: joinOptions("n", "#123456") });
+    await new Promise((r) => setTimeout(r, 100));
+    assert.strictEqual(state.players.length, 2);
+  });
+
+  it("disposes the room once the last player leaves", async () => {
+    const { room, c1 } = await twoPlayerRoom();
+    const c2 = room.clients.find((c: any) => c.sessionId !== c1.sessionId);
+    const disposed = new Promise<void>((resolve) => (room.onDispose = () => resolve()));
+
+    await c1.leave();
+    c2.leave();
+    await Promise.race([
+      disposed,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("room never disposed")), 2000))
+    ]);
   });
 });

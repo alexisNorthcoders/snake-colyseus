@@ -108,7 +108,7 @@ describe("four-player rounds", () => {
     assert.strictEqual(state.aliveCount, 3);
   });
 
-  it("ends the round when a leaver leaves one snake standing, then plays again", async () => {
+  it("ends the round when a leaver leaves one snake standing", async () => {
     const { room, state, clients, gameOvers, start } = await fullRoom();
     await start();
     state.players[1].snake.isDead = true;
@@ -120,35 +120,7 @@ describe("four-player rounds", () => {
 
     assert.strictEqual(gameOvers.length, 1, "leaving did not end the round");
     assert.strictEqual(gameOvers[0].winnerId, state.players[0].id);
-    assert.strictEqual(gameOvers[0].rankings.length, 3);
-    assert.strictEqual(state.phase, "lobby");
-
-    await start();
-    assert.strictEqual(state.phase, "playing");
-    assert.strictEqual(state.aliveCount, 3);
-    assert.strictEqual(new Set(state.players.map((p) => cellKey(p.snake.x, p.snake.y))).size, 3);
-  });
-
-  it("sits a mid-round joiner out, then plays them next round", async () => {
-    const room: any = await colyseus.createRoom<GameState>("snake", {});
-    const first = await colyseus.connectTo(room, joinOptions("p0", "#ff0000"));
-    await colyseus.connectTo(room, joinOptions("p1", "#00ff00"));
-    room.setSimulationInterval(null);
-    const state: GameState = room.state;
-
-    first.send(SnakeRoom.messageTypes.START_GAME);
-    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
-    assert.strictEqual(state.aliveCount, 2);
-
-    await colyseus.connectTo(room, joinOptions("late", "#0000ff"));
-    const late = state.players[2].snake;
-    assert.ok(late.isDead, "the late joiner entered the round alive");
-    assert.strictEqual(state.aliveCount, 2);
-
-    state.phase = "lobby";
-    first.send(SnakeRoom.messageTypes.START_GAME);
-    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
-    assert.ok(!late.isDead);
-    assert.strictEqual(state.aliveCount, 3);
+    assert.strictEqual(gameOvers[0].rankings.length, 4);
+    assert.strictEqual(state.phase, "ended");
   });
 });
