@@ -1,0 +1,38 @@
+runId=2026-09-19T19-33-23-027Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #17
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/17
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Auto-start countdown when the room is full
+
+## Body
+## What to build
+
+When a room reaches capacity (4/4 players) in the `lobby` phase, the countdown starts automatically, with no Start press needed. Reduces time to start a game.
+
+## Acceptance criteria
+
+- [ ] The 4th player joining a `lobby` room starts the countdown (same path as pressing Start)
+- [ ] A full room that is already in `countdown`/`playing`/`ended` is unaffected
+- [ ] Test covers auto-start on the 4th join
+
+## Blocked by
+
+- #16
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v node_modules | head -50 && grep -rn "countdown" --includ…
+[out] → Bash: cat src/rooms/SnakeRoom.ts && cat test/Countdown_test.ts && cat package.json | …
+[out] → Bash: python3 - <<'E' p='src/rooms/SnakeRoom.ts' s=open(p).read() a=s.index(' this.on…
+[out] assistant: Now add tests and run.
+[out] → Bash: python3 - <<'E' p='test/Countdown_test.ts' s=open(p).read() i=s.rindex('});') s…
+[out] → Bash: git add src test && git commit -q -m "feat: Auto-start countdown when the room …
+[out] assistant: The countdown now starts automatically when the 4th player joins a lobby room. It goes through the same code path as pressing Start. Typecheck is clean and the full suite passes (72 tests). I committed it to `claude/issue-17-auto-start-countdown-when-the-room-is-full` as `c62f4c9`. I did not run `/code-review`, and I did not fast-forward onto master. - **Change:** in `src/rooms/SnakeRoom.ts`, the Start handler's body is now a private `startCountdown()` method. `onJoin` calls it once the room re…
+[out] --- result: success turns=6 cost=$0.1378 ---
+
+--- process end ok=true exit=0 timedOut=false ---
