@@ -142,6 +142,7 @@ export type Phase = "lobby" | "countdown" | "playing" | "ended";
 
 export class GameState extends Schema {
     @type("string") phase: Phase = "lobby";
+    @type("number") countdown: number = 0;
     @type("number") aliveCount: number = 0;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();

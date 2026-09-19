@@ -2,6 +2,10 @@ export const gameConfig = {
     side: 800,
     leftSectionSize: 200,
     fps: 8,
+    // Seconds counted down after Start before snakes move (0 = no countdown),
+    // and the real time between counts; tests shorten both.
+    countdownSeconds: 3,
+    countdownTickMs: 1000,
     foodStorage: 20,
     backgroundColour: 'black',
     scaleFactor: 20,
