@@ -53,6 +53,58 @@ export class SnakeRoom extends Room<GameState> {
     this.state.aliveCount = this.state.players.length;
   }
 
+  /** Lobby to countdown: locks the room, deals out spawns and starts the clock. Does nothing outside the lobby. */
+  private startCountdown() {
+    if (!this.transition("countdown")) {
+      // A countdown or round is already in progress or over (e.g. a
+      // duplicate click before the gameStarted broadcast arrived, or a
+      // stale request after the round ended) — ignore it instead of
+      // resetting state.
+      return;
+    }
+
+    // Matchmaking must never place anyone into a room that has started.
+    // Never unlocked: the room is single-use.
+    this.lock();
+
+    this.roundLeavers = [];
+
+    // Handed out together so no two snakes share a cell; the offset rolls
+    // on so the same seat doesn't start in the same corner every round.
+    const spawns = spawnCells(this.state.players.length, this.spawnOffset);
+    this.spawnOffset = (this.spawnOffset + spawns.length) % startingPositions.length;
+
+    this.state.players.forEach((player, i) => {
+      const position = spawns[i];
+      player.snake.x = position.x;
+      player.snake.y = position.y;
+
+      // Set initial direction to right; a turn during the countdown
+      // overwrites it and becomes the first move.
+      player.snake.direction.x = 1;
+      player.snake.direction.y = 0;
+      player.snake.movedDirection = { x: 1, y: 0 };
+
+      player.snake.isDead = false;
+      player.snake.size = 1;
+      player.snake.score = 0;
+      player.snake.setTail([]);
+    });
+
+    console.log("[SnakeRoom] All snake positions initialized");
+
+    // Broadcast start after positions are set
+    this.broadcast(SnakeRoom.messageTypes.GAME_STARTED, {}, { afterNextPatch: true });
+
+    this.state.countdown = gameConfig.countdownSeconds;
+    if (this.state.countdown <= 0) return this.beginRound();
+
+    this.countdownTimer = this.clock.setInterval(() => {
+      this.state.countdown--;
+      if (this.state.countdown <= 0) this.beginRound();
+    }, gameConfig.countdownTickMs);
+  }
+
   private get inRound() {
     return this.state.phase === "playing";
   }
@@ -114,55 +166,7 @@ export class SnakeRoom extends Room<GameState> {
 
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
-
-      if (!this.transition("countdown")) {
-        // A countdown or round is already in progress or over (e.g. a
-        // duplicate click before the gameStarted broadcast arrived, or a
-        // stale request after the round ended) — ignore it instead of
-        // resetting state.
-        return;
-      }
-
-      // Matchmaking must never place anyone into a room that has started.
-      // Never unlocked: the room is single-use.
-      this.lock();
-
-      this.roundLeavers = [];
-
-      // Handed out together so no two snakes share a cell; the offset rolls
-      // on so the same seat doesn't start in the same corner every round.
-      const spawns = spawnCells(this.state.players.length, this.spawnOffset);
-      this.spawnOffset = (this.spawnOffset + spawns.length) % startingPositions.length;
-
-      this.state.players.forEach((player, i) => {
-        const position = spawns[i];
-        player.snake.x = position.x;
-        player.snake.y = position.y;
-
-        // Set initial direction to right; a turn during the countdown
-        // overwrites it and becomes the first move.
-        player.snake.direction.x = 1;
-        player.snake.direction.y = 0;
-        player.snake.movedDirection = { x: 1, y: 0 };
-
-        player.snake.isDead = false;
-        player.snake.size = 1;
-        player.snake.score = 0;
-        player.snake.setTail([]);
-      });
-
-      console.log("[SnakeRoom] All snake positions initialized");
-
-      // Broadcast start after positions are set
-      this.broadcast(SnakeRoom.messageTypes.GAME_STARTED, {}, { afterNextPatch: true });
-
-      this.state.countdown = gameConfig.countdownSeconds;
-      if (this.state.countdown <= 0) return this.beginRound();
-
-      this.countdownTimer = this.clock.setInterval(() => {
-        this.state.countdown--;
-        if (this.state.countdown <= 0) this.beginRound();
-      }, gameConfig.countdownTickMs);
+      this.startCountdown();
     });
 
     this.onMessage(SnakeRoom.messageTypes.NEW_PLAYER, (client, message) => {
@@ -227,6 +231,10 @@ export class SnakeRoom extends Room<GameState> {
     });
 
     this.state.players.push(player);
+
+    // A full room has no one left to wait for; same path as pressing Start,
+    // and a no-op unless the room is still in the lobby.
+    if (this.state.players.length >= this.maxClients) this.startCountdown();
   }
 
   onLeave(client: Client) {

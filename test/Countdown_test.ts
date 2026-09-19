@@ -103,4 +103,27 @@ describe("start countdown", () => {
     assert.strictEqual(state.phase, "playing");
     assert.strictEqual(state.aliveCount, 1);
   });
+
+  describe("auto-start when full", () => {
+    it("starts the countdown on the 4th join, without Start", async () => {
+      const room: any = await colyseus.createRoom<GameState>("snake", {});
+      for (let i = 0; i < 3; i++) await colyseus.connectTo(room, joinOptions(`p${i}`, "#ff0000"));
+      assert.strictEqual(room.state.phase, "lobby");
+
+      await colyseus.connectTo(room, joinOptions("p3", "#ff0000"));
+      assert.strictEqual(room.state.phase, "countdown");
+      assert.strictEqual(room.state.countdown, 3);
+      assert.strictEqual(room.locked, true);
+    });
+
+    it("leaves a full room already counting down or playing unaffected", async () => {
+      const room: any = await colyseus.createRoom<GameState>("snake", {});
+      for (let i = 0; i < 4; i++) await colyseus.connectTo(room, joinOptions(`p${i}`, "#ff0000"));
+      await wait(150);
+      const counting = room.state.countdown;
+      room.onJoin({ sessionId: "extra" }, joinOptions("x", "#000000"));
+      assert.strictEqual(room.state.countdown, counting);
+      assert.strictEqual(room.state.phase, "countdown");
+    });
+  });
 });
