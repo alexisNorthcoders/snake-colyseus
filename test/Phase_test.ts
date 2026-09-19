@@ -34,6 +34,8 @@ describe("room phase", () => {
 
     assert.strictEqual(room.transition("ended"), false);
     assert.strictEqual(state.phase, "lobby");
+    assert.strictEqual(room.transition("playing"), false);
+    assert.strictEqual(room.transition("countdown"), true);
     assert.strictEqual(room.transition("playing"), true);
     assert.strictEqual(room.transition("lobby"), false);
     assert.strictEqual(state.phase, "playing");
@@ -41,7 +43,7 @@ describe("room phase", () => {
 
   it("ends terminally: a finished round never returns to the lobby", async () => {
     const { room, state } = await twoPlayerRoom();
-    room.transition("playing");
+    room.state.phase = "playing";
     room.endRound();
     assert.strictEqual(state.phase, "ended");
     assert.strictEqual(room.transition("lobby"), false);
@@ -50,7 +52,7 @@ describe("room phase", () => {
 
   it("ignores startGame after the round ended", async () => {
     const { room, c1, state } = await twoPlayerRoom();
-    room.transition("playing");
+    room.state.phase = "playing";
     room.endRound();
 
     c1.send(SnakeRoom.messageTypes.START_GAME);
@@ -78,7 +80,7 @@ describe("room phase", () => {
 
   it("ignores newPlayer once the round has started", async () => {
     const { room, c1, state } = await twoPlayerRoom();
-    room.transition("playing");
+    room.state.phase = "playing";
     c1.send(SnakeRoom.messageTypes.NEW_PLAYER, { player: joinOptions("n", "#123456") });
     await new Promise((r) => setTimeout(r, 100));
     assert.strictEqual(state.players.length, 2);
