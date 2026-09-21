@@ -18,10 +18,10 @@ describe("vs-bot room", () => {
   after(async () => colyseus.shutdown());
   beforeEach(async () => await colyseus.cleanup());
 
-  async function vsBotRoom() {
+  async function vsBotRoom(extra: object = {}) {
     // `create`, not createRoom + connectTo: the room is locked from creation,
     // so only its creator gets in (a joinById is refused).
-    const human = await colyseus.sdk.create("snake", { vsBot: true, ...joinOptions("me", "#ff0000") });
+    const human = await colyseus.sdk.create("snake", { vsBot: true, ...extra, ...joinOptions("me", "#ff0000") });
     const room: any = colyseus.getRoomById(human.roomId);
     const gameOvers: any[] = [];
     const broadcast = room.broadcast.bind(room);
@@ -128,5 +128,72 @@ describe("vs-bot room", () => {
     await until(() => state.phase === "ended");
     assert.strictEqual(gameOvers[0].winnerId, state.players.find((p) => p.isBot)!.id);
     await until(() => room.disposed || colyseus.getRoomById(room.roomId) === undefined);
+  });
+
+  describe("reaction delay", () => {
+    // The human crosses the bot's path at column 8 heading down; the bot heads
+    // right along row 10. Only a bot that sees the human's tail there in time
+    // turns away.
+    async function crossing(extra: object) {
+      const { room, state, human, start } = await vsBotRoom(extra);
+      room.setSimulationInterval(null);
+      await start();
+      const me = state.players.find((p) => p.id === human.sessionId)!;
+      const bot = state.players.find((p) => p.isBot)!;
+      // Out of the bot's sight, so it isn't lured off its line.
+      state.foodCoordinates.forEach((f) => { f.x = 14; f.y = 0; });
+      me.snake.x = 8; me.snake.y = 7;
+      me.snake.direction.x = 0; me.snake.direction.y = 1;
+      me.snake.movedDirection = { x: 0, y: 1 };
+      me.snake.setTail([{ x: 8, y: 6 }, { x: 8, y: 5 }, { x: 8, y: 4 }]);
+      bot.snake.x = 4; bot.snake.y = 10;
+      bot.snake.setTail([]);
+      for (let i = 0; i < 4 && state.phase === "playing"; i++) room.update();
+      return { state, bot, me, room };
+    }
+
+    it("cuts the bot off when it reacts late", async () => {
+      const { state, bot } = await crossing({ botReactionTicks: 2 });
+      assert.strictEqual(bot.snake.isDead, true);
+      assert.strictEqual(state.phase, "ended");
+    });
+
+    it("lets the bot dodge with no delay", async () => {
+      const { state, bot } = await crossing({ botReactionTicks: 0 });
+      assert.strictEqual(bot.snake.isDead, false);
+      assert.strictEqual(state.phase, "playing");
+    });
+
+    it("shows other snakes exactly n ticks old, and the bot's own body and food current", async () => {
+      const { room, state, start } = await vsBotRoom({ botReactionTicks: 2 });
+      room.setSimulationInterval(null);
+      await start();
+      const human = state.players.find((p) => !p.isBot)!;
+      const bot = state.players.find((p) => p.isBot)!;
+      state.foodCoordinates.forEach((f) => { f.x = 14; f.y = 0; });
+      human.snake.x = 3; human.snake.y = 3;
+      human.snake.direction.x = 0; human.snake.direction.y = 1;
+      human.snake.movedDirection = { x: 0, y: 1 };
+      bot.snake.x = 10; bot.snake.y = 15;
+      for (let ticks = 1; ticks <= 5; ticks++) {
+        room.update();
+        // The view is built at the start of the last tick, so it shows the
+        // human as it was after `ticks - 1 - 2` moves (the oldest known, early on).
+        const view = room.botView(bot);
+        assert.strictEqual(view.others[0].head.y, 3 + Math.max(0, ticks - 3));
+        assert.deepStrictEqual(view.self.head, { x: bot.snake.x, y: bot.snake.y });
+        assert.strictEqual(view.food[0].x, 14);
+      }
+    });
+
+    it("clamps and defaults botReactionTicks", async () => {
+      const ticks = async (v: unknown) => (await vsBotRoom({ botReactionTicks: v })).room.botReactionTicks;
+      assert.strictEqual(await ticks(9), 4);
+      assert.strictEqual(await ticks(-3), 0);
+      assert.strictEqual(await ticks(3), 3);
+      assert.strictEqual(await ticks("2"), 2);
+      assert.strictEqual(await ticks(NaN), 2);
+      assert.strictEqual((await vsBotRoom()).room.botReactionTicks, 2);
+    });
   });
 });

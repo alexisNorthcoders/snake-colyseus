@@ -1,0 +1,53 @@
+runId=2026-09-21T23-53-23-707Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #26
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/26
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Bot reaction delay
+
+## Body
+## What to build
+
+The bot reacts to the other snakes late, the way a person does. Each tick it still decides, but it sees every other snake where it was a few ticks ago. It still sees its own body and the food as they are now. As a result it can be cut off: pull across in front of it and it doesn't see you in time. That makes it trappable and so beatable. Right now it's effectively immortal, because the only thing that kills it is walling itself in, and in a 1v1 the last snake alive wins.
+
+The delay is counted in ticks (one tick = one move, 125 ms at 8 fps). It's set by whoever creates the room: `create("snake", { vsBot: true, botReactionTicks: n })`. That way it can be tuned from the client without redeploying the server.
+
+**Decisions:**
+
+- `botReactionTicks` is an integer, clamped to 0–4. A missing, non-numeric or out-of-range value falls back to or clamps to the server default. The server default is 2 (≈250 ms, roughly human reaction time). 0 means today's behaviour.
+- The value is fixed when the room is created, like `vsBot`. Any client can pick it, but it only affects that client's own private bot room.
+- Only the *other snakes* are delayed (head, body, `isDead`). The bot's own body and the food stay current: it knows where it is and chases pellets that still exist.
+- The room keeps the last few ticks of other-snake snapshots. Early in a round, before there are `n` snapshots, it uses the oldest one it has.
+- `decide()` stays pure and unchanged in shape. The delay lives entirely in how the room builds the `BotView`.
+
+## Acceptance criteria
+
+- [ ] A vs-bot room accepts `botReactionTicks` at creation; invalid values fall back to or clamp to the default (2), and it's clamped to 0–4
+- [ ] With `n > 0`, the bot's view of other snakes is exactly `n` ticks old; its own body and the food are current
+- [ ] Integration test: with a delay, a human snake that moves into the bot's path is not seen in time and the bot crashes into it; with `botReactionTicks: 0`, the same setup is dodged
+- [ ] With `botReactionTicks: 0`, behaviour matches today's (existing bot tests still pass)
+- [ ] Non-bot rooms ignore the option
+
+## Blocked by
+
+None - can start immediately
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v -E "^(logs|docs)/" | head -50 && grep -rn -i "vsBot\|Bot…
+[out] → Bash: cat src/bot.ts | head -60; cat src/rooms/SnakeRoom.ts; cat test/VsBot_test.ts t…
+[out] → Bash: python3 - <<'EOF' p='src/rooms/SnakeRoom.ts' s=open(p).read() s=s.replace(''' /…
+[out] → Bash: grep -n "advanceTail\|growTail\|setTail\|tailCells" -A12 src/rooms/schema/Snake…
+[out] → Bash: python3 - <<'EOF' p='test/VsBot_test.ts' s=open(p).read() s=s.replace(''' async…
+[out] → Bash: python3 - <<'EOF' p='test/VsBot_test.ts' s=open(p).read() a=s.index(' it("shows…
+[out] → Bash: git add src test && git commit -q -m "feat: Bot reaction delay (#26) The bot se…
+[out] assistant: The bot now sees other snakes a few ticks late, and the change is committed on `claude/issue-26-bot-reaction-delay` (22a893a). `tsc` is clean and the full suite passes (97 tests). I did not run the `/code-review` step, so the change hasn't had that review. - **Option:** `create("snake", { vsBot: true, botReactionTicks: n })` takes an integer. It is rounded, clamped to 0–4, and falls back to the default of 2 if missing or not a finite number. Non-bot rooms never read it. Because the default is 2…
+[out] --- result: success turns=8 cost=$0.2455 ---
+
+--- process end ok=true exit=0 timedOut=false ---
