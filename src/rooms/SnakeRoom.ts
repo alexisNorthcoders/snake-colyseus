@@ -14,6 +14,9 @@ const transitions: Record<Phase, Phase[]> = {
   ended: []
 };
 
+const defaultBotReactionTicks = 2;
+const maxBotReactionTicks = 4;
+
 export class SnakeRoom extends Room<GameState> {
   // Add type definition for your message types
   static messageTypes = {
@@ -40,6 +43,12 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only: the running countdown's timer, cleared when it reaches 0.
   private countdownTimer?: { clear(): void };
 
+  // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
+  private botReactionTicks = defaultBotReactionTicks;
+
+  // Server-only: other-snake snapshots from the last few ticks, oldest first. Cleared at each round start.
+  private snapshots: Map<string, BotView["others"][number]>[] = [];
+
   /** The only place the phase changes. Returns false, doing nothing, if `to` can't follow the current phase. */
   private transition(to: Phase) {
     if (!transitions[this.state.phase].includes(to)) return false;
@@ -50,6 +59,7 @@ export class SnakeRoom extends Room<GameState> {
   /** Ends the countdown: the snakes move from the next tick on. */
   private beginRound() {
     this.countdownTimer?.clear();
+    this.snapshots = [];
     this.transition("playing");
     this.state.aliveCount = this.state.players.length;
   }
@@ -135,21 +145,34 @@ export class SnakeRoom extends Room<GameState> {
     this.state.players.push(bot);
   }
 
-  /** A plain-data snapshot of the board as a human player would see it. */
+  /** Records where every snake is this tick, keeping just enough ticks for the bot's reaction delay. */
+  private recordSnapshot() {
+    const snapshot = new Map<string, BotView["others"][number]>();
+    this.state.players.forEach((p) =>
+      snapshot.set(p.id, { head: { x: p.snake.x, y: p.snake.y }, body: tailCells(p.snake), isDead: p.snake.isDead })
+    );
+    this.snapshots.push(snapshot);
+    if (this.snapshots.length > this.botReactionTicks + 1) this.snapshots.shift();
+  }
+
+  /** A plain-data snapshot of the board as a human player would see it. Other snakes are `botReactionTicks` old; the bot's own body and the food are current. */
   private botView(me: Player): BotView {
     const snake = (p: Player) => ({ head: { x: p.snake.x, y: p.snake.y }, body: tailCells(p.snake) });
+    // The oldest snapshot stands in early in a round, before n ticks exist.
+    const past = this.snapshots[0];
     return {
       grid: { width: gameConfig.scaleFactor, height: gameConfig.scaleFactor },
       self: { ...snake(me), movedDirection: { ...me.snake.movedDirection } },
       others: this.state.players
         .filter((p) => p !== me)
-        .map((p) => ({ ...snake(p), isDead: p.snake.isDead })),
+        .map((p) => past?.get(p.id) ?? { ...snake(p), isDead: p.snake.isDead }),
       food: this.state.foodCoordinates.map((f) => ({ x: f.x, y: f.y, type: f.type, score: foodScore[f.type] }))
     };
   }
 
   /** Asks each live bot which way to go; a bot that throws keeps its current direction. */
   private steerBots() {
+    this.recordSnapshot();
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
       try {
@@ -171,6 +194,10 @@ export class SnakeRoom extends Room<GameState> {
     // A private match against a bot: locked before anyone can be matched in.
     if (options?.vsBot === true) {
       this.lock();
+      const ticks = options.botReactionTicks;
+      if (typeof ticks === "number" && Number.isFinite(ticks)) {
+        this.botReactionTicks = Math.min(maxBotReactionTicks, Math.max(0, Math.round(ticks)));
+      }
       this.seatBot();
     }
 
