@@ -169,7 +169,7 @@ export class SnakeRoom extends Room<GameState> {
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
     // A private match against a bot: locked before anyone can be matched in.
-    if (options?.vsBot) {
+    if (options?.vsBot === true) {
       this.lock();
       this.seatBot();
     }
