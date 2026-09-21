@@ -1,7 +1,7 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, Food, PlayerColors, tailCells } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
-import { BotView, decide, defaultBotProfile } from "../bot";
+import { BotView, decide, rookieBotProfile } from "../bot";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
@@ -130,7 +130,7 @@ export class SnakeRoom extends Room<GameState> {
   private seatBot() {
     // The colon can't appear in a session id, so this never collides with one.
     const id = `bot:${this.roomId}`;
-    const bot = new Player(id, defaultBotProfile.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
+    const bot = new Player(id, rookieBotProfile.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
     bot.isBot = true;
     this.state.players.push(bot);
   }
@@ -153,7 +153,7 @@ export class SnakeRoom extends Room<GameState> {
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
       try {
-        this.turn(player.snake, decide(this.botView(player), defaultBotProfile));
+        this.turn(player.snake, decide(this.botView(player), rookieBotProfile));
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
