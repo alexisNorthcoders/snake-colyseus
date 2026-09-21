@@ -1,0 +1,63 @@
+runId=2026-09-21T23-03-23-552Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #23
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/23
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Rookie bot policy
+
+## Body
+## What to build
+
+Replace the placeholder policy behind `decide()` with a real, beatable opponent. It hunts pellets sensibly, never blunders into an instant death, and loses honestly to a player who out-eats it or curls a body around it. The seam, snapshot and room wiring from #22 don't change. This ticket is pure policy work.
+
+Behaviour is driven by a profile:
+
+```ts
+BotProfile = { visionRadius: number, avoidSelfTrap: boolean }   // rookie ≈ { visionRadius: 8, avoidSelfTrap: false }
+```
+
+The policy decisions (settled in design):
+
+- **Targeting:** BFS from the head over free cells on the wrapping board. Among reachable pellets within `visionRadius` (toroidal distance), pick the one with the best `score / distance` and step toward it.
+- **One-step safety:** reject any step that lands on a live body. Also reject any cell next to a live enemy head: collisions resolve simultaneously and a head-on kills *both* snakes, so a bot that blunders into the player takes the player with it. If the chosen step is unsafe, take any safe step. If there is none, carry on and die.
+- **Nothing in view:** keep going straight. When the next cell is unsafe, take the safe turn with the most free cells beyond it (a cheap 1-ply count, not a flood fill).
+- **No random blunders.** Weakness comes from limited vision and no self-trap lookahead only; noise reads as a bug.
+- Dead snakes' bodies are pass-through, matching the room's collision rules.
+
+`avoidSelfTrap: true` is out of scope here: accept the field, but rookie doesn't use it.
+
+## Acceptance criteria
+
+- [ ] `decide()` implements targeting, one-step safety and the nothing-in-view behaviour above, driven by `BotProfile`
+- [ ] The vs-bot room uses the rookie profile
+- [ ] Unit tests on `decide()` alone, no room booted, cover: steps toward the best-value pellet; ignores pellets beyond `visionRadius`; paths across the wrap edge when that's shorter; never steps onto a live body; never steps next to a live enemy head; goes straight when nothing's in view; picks the roomier safe turn when blocked; walks into a C-shaped dead end (rookie has no self-trap lookahead)
+- [ ] `decide()` is deterministic for a given view (no internal RNG)
+- [ ] Existing suite stays green
+
+## Blocked by
+
+- alexisNorthcoders/snake-colyseus#22 — vs-bot room with a bot that plays (can run in parallel with the client's Play vs Computer issue)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v node_modules | grep -iv '^logs' | head -80 && grep -rn "…
+[out] → Bash: cat src/bot.ts test/Bot_test.ts; grep -n -i "bot\|decide" src/rooms/SnakeRoom.t…
+[out] → Bash: sed -n 120,162p src/rooms/SnakeRoom.ts; grep -n "defaultBotProfile" -r src test
+[out] → Bash: python3 - <<'EOF' p='src/bot.ts' s=open(p).read() i=s.index('/** How a bot play…
+[out] → Bash: python3 - <<'EOF' p='test/Bot_test.ts' s=open(p).read() s=s.rstrip() assert s.e…
+[out] assistant: Nearly done: one of my new tests failed because its pellet is equidistant both ways round the board. I'm moving it to a spot with a single shortest route.
+[out] → Bash: sed -i 's/food: \[food(5, 15, 50)\]/food: [food(5, 14, 50)]/' test/Bot_test.ts …
+[out] assistant: Typecheck and full suite are green. Now the review, then commit.
+[out] → Skill: mattpocock-skills:code-review
+[out] assistant: The changes are uncommitted, so `master...HEAD` would be empty. I'll commit first, then review the diff.
+[out] → Bash: git add src test && git commit -q -m "feat: Rookie bot policy (#23) Targeting b…
+[out] assistant: `decide()` is now the rookie policy, and the vs-bot room uses it through a new `rookieBotProfile`. Typecheck is clean and the full suite passes (93 tests). It's committed on `claude/issue-23-rookie-bot-policy` as `0c80066`. **What it does** - **Targeting:** BFS over free cells on the wrapping board. Among pellets within `visionRadius` it steps toward the best `score / distance`. - **Safety:** it never steps onto a live body or next to a live enemy head. If the chosen step is unsafe it falls bac…
+[out] --- result: success turns=10 cost=$0.2062 ---
+
+--- process end ok=true exit=0 timedOut=false ---
