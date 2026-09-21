@@ -1,6 +1,7 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Phase, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, Food, PlayerColors, tailCells } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
+import { BotView, decide, defaultBotProfile } from "../bot";
 import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
@@ -105,6 +106,60 @@ export class SnakeRoom extends Room<GameState> {
     }, gameConfig.countdownTickMs);
   }
 
+  /** Points the snake in direction `key`, ignoring anything that isn't a direction or would reverse it. */
+  private turn(snake: Snake, key: unknown) {
+    // hasOwn, not a plain lookup: a key like "toString" would otherwise
+    // find a prototype method and write undefined into the synced state.
+    if (typeof key !== "string" || !Object.hasOwn(directionMap, key)) return;
+    const turn = directionMap[key as Direction];
+
+    // Reversing would step the head straight back onto the body, so a
+    // reversal is ignored rather than left to kill the snake.
+    const moved = snake.movedDirection;
+    if (turn.x === -moved.x && turn.y === -moved.y) return;
+
+    snake.direction.x = turn.x;
+    snake.direction.y = turn.y;
+  }
+
+  /**
+   * Seats the room's one bot. Only ever called for a vsBot room, which is
+   * locked from creation: `spawnCells` tops out at 4 snakes, so a bot must
+   * never sit in a room that can still take humans.
+   */
+  private seatBot() {
+    // The colon can't appear in a session id, so this never collides with one.
+    const id = `bot:${this.roomId}`;
+    const bot = new Player(id, defaultBotProfile.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
+    bot.isBot = true;
+    this.state.players.push(bot);
+  }
+
+  /** A plain-data snapshot of the board as a human player would see it. */
+  private botView(me: Player): BotView {
+    const snake = (p: Player) => ({ head: { x: p.snake.x, y: p.snake.y }, body: tailCells(p.snake) });
+    return {
+      grid: { width: gameConfig.scaleFactor, height: gameConfig.scaleFactor },
+      self: { ...snake(me), movedDirection: { ...me.snake.movedDirection } },
+      others: this.state.players
+        .filter((p) => p !== me)
+        .map((p) => ({ ...snake(p), isDead: p.snake.isDead })),
+      food: this.state.foodCoordinates.map((f) => ({ x: f.x, y: f.y, type: f.type, score: foodScore[f.type] }))
+    };
+  }
+
+  /** Asks each live bot which way to go; a bot that throws keeps its current direction. */
+  private steerBots() {
+    this.state.players.forEach((player) => {
+      if (!player.isBot || player.snake.isDead) return;
+      try {
+        this.turn(player.snake, decide(this.botView(player), defaultBotProfile));
+      } catch (error) {
+        console.error("[SnakeRoom] Bot decision failed:", error);
+      }
+    });
+  }
+
   private get inRound() {
     return this.state.phase === "playing";
   }
@@ -112,6 +167,12 @@ export class SnakeRoom extends Room<GameState> {
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
+
+    // A private match against a bot: locked before anyone can be matched in.
+    if (options?.vsBot === true) {
+      this.lock();
+      this.seatBot();
+    }
 
     generateFoodCoordinates().forEach((placement) => {
       const food = new Food();
@@ -149,18 +210,7 @@ export class SnakeRoom extends Room<GameState> {
       const player = this.state.players.find(p => p.id === client.sessionId);
 
       if (player && player.snake && !player.snake.isDead) {
-        // hasOwn, not a plain lookup: a key like "toString" would otherwise
-        // find a prototype method and write undefined into the synced state.
-        if (!Object.hasOwn(directionMap, data.key)) return;
-        const turn = directionMap[data.key as Direction];
-
-        // Reversing would step the head straight back onto the body, so a
-        // reversal is ignored rather than left to kill the snake.
-        const moved = player.snake.movedDirection;
-        if (turn.x === -moved.x && turn.y === -moved.y) return;
-
-        player.snake.direction.x = turn.x;
-        player.snake.direction.y = turn.y;
+        this.turn(player.snake, data.key);
       }
     });
 
@@ -234,7 +284,8 @@ export class SnakeRoom extends Room<GameState> {
 
     // A full room has no one left to wait for; same path as pressing Start,
     // and a no-op unless the room is still in the lobby.
-    if (this.state.players.length >= this.maxClients) this.startCountdown();
+    // The bot isn't a client, so it doesn't count towards a full room.
+    if (this.state.players.filter(p => !p.isBot).length >= this.maxClients) this.startCountdown();
   }
 
   onLeave(client: Client) {
@@ -262,6 +313,8 @@ export class SnakeRoom extends Room<GameState> {
    */
   update() {
     if (!this.inRound) return;
+
+    this.steerBots();
 
     const live = this.state.players.filter((player) => player.snake && !player.snake.isDead);
 

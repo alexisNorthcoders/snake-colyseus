@@ -1,0 +1,68 @@
+runId=2026-09-21T22-43-23-123Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #22
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/22
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** vs-bot room with a bot that plays
+
+## Body
+## What to build
+
+A room created with a `vsBot` option is a private match against one server-side bot. The room locks at creation so matchmaking never places a stranger into it. The bot is seated in the lobby next to the human, and when the round starts it moves every tick like any other snake: it can eat, grow, die and win.
+
+The bot is a virtual player inside the room: no socket and no client. It gets a new synced `isBot` flag on `Player`, a synthetic id that can't collide with a session id, and its own name and colours. Each tick, just before the snakes move, the room builds a plain-data snapshot of what a human player could see and asks the bot for a direction. That seam is the whole point of this ticket:
+
+```ts
+decide(view: BotView, profile: BotProfile): Direction   // pure: no Schema objects, no room, no internal RNG
+BotView = { grid, self: { head, body, movedDirection }, others: { head, body, isDead }[], food: { x, y, type, score }[] }
+```
+
+The policy behind the seam is a deliberately dumb placeholder: go straight, and turn only when the next cell is fatal. A follow-up issue (rookie bot policy) replaces it.
+
+A reminder of why it's shaped this way: `spawnCells` throws above 4 snakes and `maxClients` is already 4. A bot must therefore only ever exist in a locked vs-bot room (1 human + 1 bot). It must never be added to a room that can still take humans.
+
+## Acceptance criteria
+
+- [ ] Creating a room with `vsBot` locks it at creation; `joinOrCreate` from another client never lands in it
+- [ ] The room seats exactly one bot `Player` with `isBot = true`, a synthetic id, a name and colours, visible in the lobby state
+- [ ] `isBot` is a synced field on `Player`, defaulting to false for humans
+- [ ] Each tick, the bot's direction comes from `decide()` over a plain `BotView` snapshot, applied just before the movement phase and under the same no-reversal rule as a human `move`
+- [ ] If `decide()` throws, the bot keeps its current direction and the round carries on
+- [ ] Nothing addressed to a client (pong, broadcasts to a session) targets the bot's id
+- [ ] Human dies first → the round ends with the bot as winner; bot dies first → the human wins. `aliveCount` and rankings are correct in both cases
+- [ ] The human leaving mid-round ends the round and the room disposes (the bot doesn't keep it alive)
+- [ ] Integration test: a human+bot round starts, ticks and ends with sane rankings; the existing suite stays green
+
+## Blocked by
+
+None (can start immediately)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v node_modules | head -80 && cat CONTEXT.md | head -60 && …
+[out] → Bash: cat src/rooms/SnakeRoom.ts src/rooms/schema/SnakeState.ts src/gameConfig.ts src…
+[out] → Read: /home/alexis/Projects/snake-colyseus/src/rooms/SnakeRoom.ts
+[out] → Bash: cat src/rooms/schema/SnakeState.ts src/gameConfig.ts src/contants.ts test/helpe…
+[out] → Bash: cat test/setup.ts src/app.config.ts; sed -n 1,80p test/Countdown_test.ts; git b…
+[out] → Bash: cat > src/bot.ts <<'EOF' import { Direction, directionMap } from "./contants"; …
+[out] assistant: Bot policy is done and tested. Now the room integration.
+[out] → Bash: python3 - <<'EOF' import re p='src/rooms/schema/SnakeState.ts' s=open(p).read()…
+[out] → Bash: cat > test/VsBot_test.ts <<'EOF' import assert from "assert"; import { Colyseus…
+[out] → Bash: python3 - <<'EOF' p='test/VsBot_test.ts' s=open(p).read() s=s.replace(''' const…
+[out] → Bash: python3 - <<'EOF' p='test/VsBot_test.ts' s=open(p).read() s=s.replace("bot.snak…
+[out] → Bash: python3 - <<'EOF' p='test/VsBot_test.ts' s=open(p).read() s=s.replace(' const b…
+[out] → Skill: code-review
+[out] → Bash: git diff master...HEAD --stat; git diff master...HEAD | head -1500
+[out] → Bash: sed -n 1,110p src/rooms/SnakeRoom.ts; sed -n 165,460p src/rooms/SnakeRoom.ts; g…
+[out] → Bash: sed -n 460,600p src/rooms/SnakeRoom.ts; grep -n "movedDirection" src/rooms/sche…
+[out] → Bash: sed -i 's/if (options?.vsBot) {/if (options?.vsBot === true) {/' src/rooms/Snak…
+[out] assistant: Issue #22 is implemented and committed on `claude/issue-22-vs-bot-room-with-a-bot-that-plays`. I did not merge it to master. Typecheck is clean and the full suite passes (84 tests, including the 7 new vs-bot ones and 5 policy unit tests). - **The seam:** `src/bot.ts` holds `BotView`, `BotProfile` and a pure `decide(view, profile)`. The placeholder policy goes straight and turns only when the next cell is fatal. - **Room:** creating a room with `vsBot: true` locks it and seats one bot `Player` w…
+[out] --- result: success turns=14 cost=$0.4937 ---
+
+--- process end ok=true exit=0 timedOut=false ---
