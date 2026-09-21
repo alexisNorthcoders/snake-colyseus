@@ -120,6 +120,8 @@ export class Player extends Schema {
     @type("string") name: string;
     @type(PlayerColors) colours: PlayerColors;
     @type(Snake) snake: Snake;
+    // A virtual player run by the server: no socket, no client.
+    @type("boolean") isBot: boolean = false;
 
     constructor(id: string, name: string, colours: PlayerColors) {
         super();
