@@ -1,0 +1,56 @@
+runId=2026-09-22T00-13-11-865Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #27
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/27
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Room game speed
+
+## Body
+## What to build
+
+Each room runs at its own speed, measured in ticks (moves) per second and chosen when the room is created: `create`/`joinOrCreate("snake", { speed: n })`. Every client can read the speed from room state. Today it's fixed at 8 ticks per second (`gameConfig.fps`). With this, the speed can be tuned without redeploying.
+
+**Decisions:**
+
+- `speed` is an integer number of ticks per second, clamped to 4–15. A missing or invalid value falls back to the default, which stays 8 until playtesting says otherwise.
+- The value is fixed when the room is created. The simulation interval is `1000 / speed`.
+- The speed is synced to clients in `GameState` as the tick length in ms, so the client can pace its animation to match.
+- Matchmaking filters on `speed`, so a `joinOrCreate` never puts a player into a room running at a different speed. Production clients all send the default, so production matchmaking is unchanged.
+- Countdown timing is unaffected.
+- `botReactionTicks` (#26) stays counted in ticks, so its real-time delay scales with speed. That's fine: slower games give the bot slower reflexes as well.
+
+## Acceptance criteria
+
+- [ ] A room created with `speed` runs its simulation at that many ticks per second; invalid values fall back to 8, and it's clamped to 4–15
+- [ ] The tick length is synced in room state and is correct for the room's speed
+- [ ] `joinOrCreate` with different speeds lands in different rooms, and with the same speed lands in the same room
+- [ ] With no `speed`, behaviour is identical to today (existing tests pass)
+
+## Blocked by
+
+None - can start immediately
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git ls-files | grep -v node_modules | head -80 && grep -rn "fps\|filterBy\|setS…
+[out] → Bash: cat src/gameConfig.ts src/app.config.ts src/rooms/schema/SnakeState.ts test/hel…
+[out] → Bash: sed -n 120,205p src/rooms/SnakeRoom.ts; grep -n "botReactionTicks\|onCreate\|fi…
+[out] → Bash: grep -n "filterBy\|#filterOptions\|filterOptions" -r node_modules/@colyseus/cor…
+[out] → Bash: sed -n 60,90p node_modules/@colyseus/core/build/matchmaker/RegisteredHandler.js…
+[out] assistant: Quick status: I've read the code and confirmed how Colyseus's `filterBy` works. I'm writing the tests and then the implementation.
+[out] → Bash: cat > test/Speed_test.ts <<'EOF' import assert from "assert"; import { Colyseus…
+[out] assistant: Typecheck is clean and the new tests pass. Now the full suite, then the review.
+[out] → Bash: npm test 2>&1 | grep -E "passing|failing|^\s+[0-9]+\)"
+[out] → Skill: mattpocock-skills:code-review
+[out] assistant: Reviewing inline against `master` rather than spawning sub-agents. The repo documents no coding standards beyond `AGENTS.md`, so the Standards axis is just the smell baseline. I'll commit now.
+[out] → Bash: git add src test && git commit -q -m "feat: Room game speed (#27) Rooms take a …
+[out] assistant: Issue #27 is implemented and committed as `9930cdc` on `claude/issue-27-room-game-speed`. Typecheck is clean, the new `test/Speed_test.ts` passes, and the full suite passes (102 tests). I didn't restart PM2, so the running server needs a restart by you to pick this up. **What changed** - **Speed option:** `onCreate` reads `options.speed`, rounds it to an integer and clamps it to 4–15 (`minSpeed` and `maxSpeed` in `gameConfig`). A missing or invalid value falls back to `gameConfig.fps` (8). - **…
+[out] --- result: success turns=11 cost=$0.2194 ---
+
+--- process end ok=true exit=0 timedOut=false ---
