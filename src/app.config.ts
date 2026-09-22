@@ -12,7 +12,8 @@ export default config({
         /**
          * Define your room handlers:
          */
-        gameServer.define('snake', SnakeRoom);
+        // Rooms are matched by speed: a joinOrCreate never lands in a room at another speed.
+        gameServer.define('snake', SnakeRoom).filterBy(['speed']);
     },
     initializeExpress: (app) => {
         /**
