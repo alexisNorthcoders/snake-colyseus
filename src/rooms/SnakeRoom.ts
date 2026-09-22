@@ -189,6 +189,11 @@ export class SnakeRoom extends Room<GameState> {
 
   onCreate(options: any) {
     this.setState(new GameState());
+    const speed = options?.speed;
+    const ticksPerSecond = typeof speed === "number" && Number.isFinite(speed)
+      ? Math.min(gameConfig.maxSpeed, Math.max(gameConfig.minSpeed, Math.round(speed)))
+      : gameConfig.fps;
+    this.state.tickMs = 1000 / ticksPerSecond;
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
 
     // A private match against a bot: locked before anyone can be matched in.
@@ -230,7 +235,7 @@ export class SnakeRoom extends Room<GameState> {
       // it a joining player and mid-lobby colour changes would never reach the
       // other clients. It also drains the afterNextPatch broadcast queue.
       this.broadcastPatch();
-    }, 1000 / gameConfig.fps);
+    }, this.state.tickMs);
 
     // Use the static message types
     this.onMessage(SnakeRoom.messageTypes.MOVE, (client, data) => {

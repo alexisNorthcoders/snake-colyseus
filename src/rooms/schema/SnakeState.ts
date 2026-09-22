@@ -1,6 +1,6 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
 import { DirectionVector } from "../../contants";
-import { Cell } from "../../gameConfig";
+import { Cell, gameConfig } from "../../gameConfig";
 
 export class Coordinates extends Schema {
     @type("number") x: number = 0;
@@ -145,6 +145,8 @@ export type Phase = "lobby" | "countdown" | "playing" | "ended";
 export class GameState extends Schema {
     @type("string") phase: Phase = "lobby";
     @type("number") countdown: number = 0;
+    // Length of one simulation tick in ms, fixed at room creation, so clients can pace their animation.
+    @type("number") tickMs: number = 1000 / gameConfig.fps;
     @type("number") aliveCount: number = 0;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();

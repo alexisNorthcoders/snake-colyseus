@@ -2,6 +2,9 @@ export const gameConfig = {
     side: 800,
     leftSectionSize: 200,
     fps: 8,
+    // Bounds for a room's requested speed, in ticks per second.
+    minSpeed: 4,
+    maxSpeed: 15,
     // Seconds counted down after Start before snakes move (0 = no countdown),
     // and the real time between counts; tests shorten both.
     countdownSeconds: 3,
