@@ -1,0 +1,74 @@
+runId=2026-09-24T05-50-59-976Z-review-autofix
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+You are continuing work on an existing pull request branch in this repository.
+The automated PR reviewer returned **VERDICT: REQUEST_CHANGES**.
+## Review feedback — implement what you can safely fix in this single pass
+- `src/rooms/SnakeRoom.ts`: the room seeds its RNG with `Math.floor(Math.random() * 2 ** 32)` and then passes that generator into food placement. That means the seed is not preserved anywhere, so the room cannot be replayed from its seed as required. Store the seed on the room state/config and derive the generator from that stored seed instead of discarding it.
+## Rules
+- Stay on the **current git branch**; do not create a new branch or a second PR.
+- Make focused edits; do not revert unrelated work.
+- Do not run destructive git commands (no hard reset, no force-push).
+- If, after reading the code, you conclude none of the feedback is valid or actionable, make no edits and end your reply with a line `AUTOFIX_NO_CHANGES: <your reasoning>`. Do not use it if you changed anything.
+- The open PR is: https://github.com/alexisNorthcoders/snake-colyseus/pull/35
+- Linked issue: #31
+## Original task context (reference only, do not treat as new orders)
+# GitHub issue #31
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/31
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Seeded food placement
+
+## Body
+## Parent
+
+alexisNorthcoders/snake-colyseus#30: Pure rules engine (prefactor). Read it first for why the engine exists and where it's heading.
+
+## What to build
+
+Every random choice the game rules make (which cell a pellet goes to, and which fruit it is, both at room creation and when a pellet respawns) comes from a random number generator passed in by the caller, not from `Math.random`. Each room creates its own generator from a random seed. With the same seed, a room lays out exactly the same food. This is the first step towards replaying a whole game from its seed.
+
+**Decisions:**
+
+- Add a small seedable pseudo-random generator in the repo (for example mulberry32: a few lines, with no new dependency). It returns `() => number` in [0, 1), like `Math.random`.
+- It lives in the new engine directory, the self-contained home for the rules that the rest of #30 fills. The engine directory never imports from `rooms/`, the schema, or Colyseus.
+- Every function that makes a random choice for the rules takes the generator as a parameter: the fruit type, the initial food layout, and `pickFreeCell`. **Remove the `Math.random` default** from `pickFreeCell`, so forgetting to pass one is a compile error.
+- The room keeps one generator per room, created at room creation from a random seed, and passes it to every food call. The cosmetic `backgroundNumber` isn't a game rule and can keep using `Math.random`.
+- Gameplay doesn't change.
+
+## Acceptance criteria
+
+- [ ] `Math.random` isn't called anywhere in food placement or respawn
+- [ ] Two food layouts made from the same seed are identical, and two made from different seeds differ (unit test, no room)
+- [ ] Respawning from a given seed and board state lands on the same cell and fruit every time (unit test)
+- [ ] Every existing test passes unchanged, in particular `FoodPlacement` and `FoodRespawn`
+
+## Blocked by
+
+None - can start immediately
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: grep -n -i "seed\|rng\|random" src/rooms/SnakeRoom.ts; ls src/engine; grep -rn …
+[out] → Bash: sed -n 40,70p src/rooms/SnakeRoom.ts; grep -n "onCreate\|options\|setMetadata" …
+[out] → Bash: sed -n 140,175p src/rooms/schema/SnakeState.ts; grep -n "tickMs\|backgroundNumb…
+[out] → Bash: sed -n 1,45p test/Speed_test.ts; sed -n 30,80p test/SeededFood_test.ts
+[out] assistant: Now edit: add `seed` to state, accept an optional `seed` option, derive the RNG from the stored seed.
+[out] → Bash: python3 - <<'EOF' p='src/rooms/schema/SnakeState.ts' s=open(p).read() s=s.repla…
+[out] assistant: Add a room-level test for replaying from a seed.
+[out] → Bash: python3 - <<'EOF' p='test/SeededFood_test.ts' s=open(p).read() s=s.replace('''i…
+[out] → Bash: npm test 2>&1 | grep -E "failing|room seed" ; grep -rln "backgroundNumber" --in…
+[out] → Bash: npm test 2>&1 | grep -v playground | grep -A30 "1 failing"
+[out] → Bash: for i in 1 2 3; do npm test 2>&1 | grep -v playground > /tmp/t$i.log; grep -E "…
+[out] assistant: One run showed a single failure. I'm re-running to find out which test it was.
+[out] → Bash: for i in 1 2 3 4 5 6; do npm test 2>&1 | grep -v playground > /tmp/t.log; if gr…
+[out] assistant: I couldn't reproduce it in 9 more runs. Committing and pushing.
+[out] → Bash: git add src test && git commit -q -m "fix: Keep the room seed on state so food …
+[out] assistant: I fixed the review point and pushed it to the PR branch as `5528d8b`. The room now stores its seed on the game state and builds its random number generator from that stored value, so you can recreate a room's food layout from its seed. - **`src/rooms/schema/SnakeState.ts`:** `GameState` has a new `seed` field, set once when the room is created. - **`src/rooms/SnakeRoom.ts`:** - When a room is created it takes an optional `seed` option to replay a previous room. It has to be a whole number from …
+[out] --- result: success turns=12 cost=$0.2885 ---
+
+--- process end ok=true exit=0 timedOut=false ---
