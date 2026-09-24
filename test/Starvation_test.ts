@@ -126,12 +126,15 @@ describe("starvation in an endless round", () => {
     const reports = runFor(game, diesAt - 1);
     assert.ok(!a.snake.isDead, "starved early");
     assert.ok(reports.every((r) => r.events.length === 0), "something happened before the starving tick");
+    const { size, tail } = a.snake;
+    const body = tail.map(({ x, y }) => ({ x, y }));
 
     const report = run(game);
     assert.deepStrictEqual(report.events, [{ kind: "died", player: "a", cause: "starved" }]);
     assert.ok(a.snake.isDead);
     assert.strictEqual(a.snake.score, score - (Math.floor(score / D) + 1) * D);
-    assert.strictEqual(a.snake.size, 1, "starving shrank the snake");
+    assert.strictEqual(a.snake.size, size, "starving shrank the snake");
+    assert.deepStrictEqual(a.snake.tail.map(({ x, y }) => ({ x, y })), body, "starving took body segments");
   });
 
   it("saves a snake that eats on the tick it would have starved", () => {
