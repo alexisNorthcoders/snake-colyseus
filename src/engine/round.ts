@@ -1,6 +1,6 @@
 import { Cell, spawnCells, startingPositions } from "./config";
 import { NewCell, setTail } from "./tail";
-import { GameShape, SnakeShape, isRoundOver } from "./tick";
+import { GameShape, SnakeShape, TickReport, isRoundOver, roundResult } from "./tick";
 
 /**
  * Starts a round: hands every snake a spawn cell, read from the table at
@@ -39,22 +39,30 @@ export const dealRound = <C extends Cell>(
     return (offset + spawns.length) % startingPositions.length;
 };
 
-/** The snakes start moving: everyone still in the game is counted alive. */
-export const beginPlay = (game: Pick<GameShape<Cell>, "players" | "aliveCount">) => {
+/**
+ * The snakes start moving: everyone still in the game is counted alive, and a
+ * timed game's clock starts at `tickLimit` ticks. An endless game ignores it.
+ */
+export const beginPlay = (
+    game: Pick<GameShape<Cell>, "players" | "aliveCount" | "mode" | "ticksLeft">,
+    tickLimit?: number
+) => {
     game.aliveCount = [...game.players].length;
+    if (game.mode !== "endless" && tickLimit !== undefined) game.ticksLeft = tickLimit;
 };
 
 /**
  * Takes a leaving player's snake out of play mid-round, and says whether that
- * leaves the round over. A snake that was already dead isn't counted twice.
+ * leaves the round over, and to whom. A snake that was already dead isn't
+ * counted twice.
  */
 export const removeFromPlay = (
-    game: Pick<GameShape<Cell>, "aliveCount">,
+    game: Pick<GameShape<Cell>, "aliveCount" | "players">,
     snake: Pick<SnakeShape<Cell>, "isDead">
-): { roundOver: boolean } => {
+): Omit<TickReport, "events"> => {
     if (!snake.isDead) {
         snake.isDead = true;
         game.aliveCount--;
     }
-    return { roundOver: isRoundOver(game) };
+    return roundResult(game, isRoundOver(game));
 };

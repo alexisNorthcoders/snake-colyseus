@@ -17,7 +17,8 @@ import {
   rulesConfig,
   tailCells,
   tick,
-  turn as turnSnake
+  turn as turnSnake,
+  winnerOf
 } from "../engine";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
@@ -80,12 +81,12 @@ export class SnakeRoom extends Room<GameState> {
     return true;
   }
 
-  /** Ends the countdown: the snakes move from the next tick on. */
+  /** Ends the countdown: the snakes move from the next tick on, and a timed round's clock starts. */
   private beginRound() {
     this.countdownTimer?.clear();
     this.snapshots = [];
     this.transition("playing");
-    beginPlay(this.state);
+    beginPlay(this.state, Math.round(gameConfig.roundSeconds * 1000 / this.state.tickMs));
   }
 
   /** Lobby to countdown: locks the room, deals out spawns and starts the clock. Does nothing outside the lobby. */
@@ -328,7 +329,8 @@ export class SnakeRoom extends Room<GameState> {
 
       // A leaver can be the one that leaves a single snake standing. Taken
       // out of the synced list first, so marking the snake dead never syncs.
-      if (removeFromPlay(this.state, player.snake).roundOver) this.endRound();
+      const result = removeFromPlay(this.state, player.snake);
+      if (result.roundOver) this.endRound(result);
     }
   }
 
@@ -338,30 +340,32 @@ export class SnakeRoom extends Room<GameState> {
 
     this.steerBots();
 
-    const { events, roundOver } = tick(this.state, this.rng, newCoordinates);
+    const report = tick(this.state, this.rng, newCoordinates);
+    const { events } = report;
     events.forEach((event) => {
       if (event.kind !== "died") return;
       const { kind, player, ...death } = event;
       this.roundDeaths.set(player, death);
     });
-    if (roundOver) this.endRound();
+    if (report.roundOver) this.endRound(report);
   }
 
   /**
-   * Announces the winner (if a snake is left) and the full ranking, and ends
-   * the round. Each snake that died says how, and into whom; the winner and
-   * anyone who left mid-round have no cause.
+   * Announces the winner the engine named in its report (if there is one:
+   * see `winnerOf`) and the full ranking, and ends the round. Each snake that
+   * died says how, and into whom; the snakes alive at the end and anyone who
+   * left mid-round have no cause.
    */
-  private endRound() {
-    const winner = this.state.players.find(p => !p.snake.isDead);
+  private endRound({ winnerId }: { winnerId?: string } = { winnerId: winnerOf(this.state) }) {
     const rankings = [
       ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score, ...this.roundDeaths.get(p.id) })),
       ...this.roundLeavers
     ].sort((a, b) => b.score - a.score);
     this.roundLeavers = [];
 
+    // Left out, not sent as undefined, when nobody won.
     this.broadcast(SnakeRoom.messageTypes.GAME_OVER, {
-      winnerId: winner?.id,
+      ...(winnerId !== undefined && { winnerId }),
       rankings
     });
 

@@ -16,6 +16,9 @@ export const gameConfig = {
     // and the real time between counts; tests shorten both.
     countdownSeconds: 3,
     countdownTickMs: 1000,
+    // Seconds of play in a timed round, turned into ticks at the room's speed
+    // when play begins; tests shorten it.
+    roundSeconds: 180,
     foodStorage: rulesConfig.foodStorage,
     backgroundColour: 'black',
     scaleFactor: rulesConfig.scaleFactor,

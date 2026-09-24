@@ -37,7 +37,7 @@ export type {
     TickEvent,
     TickReport
 } from "./tick";
-export { tick, turn } from "./tick";
+export { tick, turn, winnerOf } from "./tick";
 
 // The food, and the seeded generator every random rule draws from.
 export type { FoodPlacement } from "./food";

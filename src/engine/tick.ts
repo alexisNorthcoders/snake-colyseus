@@ -33,9 +33,11 @@ export interface GameShape<C extends Cell> {
     players: Iterable<PlayerShape<C>>;
     foodCoordinates: Iterable<FoodShape>;
     aliveCount: number;
-    // Fixed when the game is created; a game without one is timed. No rule
-    // reads it yet.
+    // Fixed when the game is created; a game without one is timed.
     mode?: GameMode;
+    // Ticks until a timed round runs out, set when play begins and counted
+    // down each tick. A game that never set it, or an endless one, has no limit.
+    ticksLeft?: number;
 }
 
 /** How a snake died. `body` is another snake's body; running into your own is `self`. */
@@ -61,15 +63,46 @@ export type TickEvent = AteEvent | DiedEvent;
 
 /**
  * What a tick did, as events in the order it did them (every pellet eaten,
- * then every death), and whether the round is now over.
+ * then every death), and whether the round is now over: at most one snake
+ * left alive, or a timed round out of ticks. A round that is over names its
+ * winner (see `winnerOf`), left out when there's none.
  */
 export interface TickReport {
     events: TickEvent[];
     roundOver: boolean;
+    winnerId?: string;
 }
 
-/** The one place that decides a round is over: one snake or none left alive. */
+/** Whether the round is over, with its winner if it is and there's one. */
+export const roundResult = (
+    game: Pick<GameShape<Cell>, "players">,
+    roundOver: boolean
+): Omit<TickReport, "events"> => {
+    const winnerId = roundOver ? winnerOf(game) : undefined;
+    return { roundOver, ...(winnerId !== undefined && { winnerId }) };
+};
+
+/**
+ * The one place that decides the snakes have ended a round: one snake or none
+ * left alive. A timed round can also run out of ticks, which `tick` checks.
+ */
 export const isRoundOver = (game: Pick<GameShape<Cell>, "aliveCount">) => game.aliveCount <= 1;
+
+/**
+ * The id of the live snake with the highest score, the longer one breaking a
+ * tie; none when every snake is dead, or when the best two tie on both. With
+ * one snake left alive that is simply the survivor. Dead snakes can't win,
+ * however much they scored.
+ */
+export const winnerOf = (game: Pick<GameShape<Cell>, "players">): string | undefined => {
+    const [best, next] = [...game.players]
+        .filter(({ snake }) => !snake.isDead)
+        .sort((a, b) => b.snake.score - a.snake.score || b.snake.size - a.snake.size);
+
+    if (!best) return;
+    if (next && next.snake.score === best.snake.score && next.snake.size === best.snake.size) return;
+    return best.id;
+};
 
 /** Points the snake in direction `key`, ignoring a turn that would reverse it. */
 export const turn = (snake: Pick<SnakeShape<Cell>, "direction" | "movedDirection">, key: Direction) => {
@@ -115,7 +148,16 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
     });
 
     const deaths = killAll(game, crashes);
-    return { events: [...meals, ...deaths.events], roundOver: deaths.roundOver };
+
+    // A timed game runs against the clock once play began with a limit, and
+    // the tick that uses up the last of it ends the round, whoever is left.
+    let timeUp = false;
+    if (game.mode !== "endless" && game.ticksLeft !== undefined) {
+        game.ticksLeft--;
+        timeUp = game.ticksLeft <= 0;
+    }
+
+    return { events: [...meals, ...deaths.events], ...roundResult(game, deaths.roundOver || timeUp) };
 };
 
 const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
