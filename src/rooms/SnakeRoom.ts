@@ -1,10 +1,11 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Phase, Player, Snake, Food, PlayerColors, tailCells } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { BotView, decide, rookieBotProfile } from "../bot";
 import { cellKey, foodScore, gameConfig, spawnCells, startingPositions } from "../gameConfig";
 import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
+import { tailCells } from "../engine/tail";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
