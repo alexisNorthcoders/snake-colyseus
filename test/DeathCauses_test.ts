@@ -2,7 +2,7 @@ import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
-import { GameState } from "../src/rooms/schema/SnakeState";
+import { GameState, Snake } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { joinOptions, wait } from "./helpers";
 
@@ -11,7 +11,7 @@ const until = async (condition: () => boolean) => {
   assert.ok(condition(), "condition never held");
 };
 
-const place = (s: any, x: number, y: number, dx: number, tail: { x: number; y: number }[] = []) => {
+const place = (s: Snake, x: number, y: number, dx: number, tail: { x: number; y: number }[] = []) => {
   s.x = x; s.y = y; s.direction.x = dx; s.direction.y = 0;
   s.movedDirection = { x: dx, y: 0 };
   s.setTail(tail);
