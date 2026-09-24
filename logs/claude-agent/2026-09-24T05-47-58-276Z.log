@@ -1,0 +1,84 @@
+runId=2026-09-24T05-47-58-276Z
+cwd=/home/alexis/Projects/snake-colyseus
+bin=/home/alexis/.local/bin/claude
+--- user prompt ---
+# GitHub issue #31
+
+**Repository:** alexisNorthcoders/snake-colyseus
+**URL:** https://github.com/alexisNorthcoders/snake-colyseus/issues/31
+**State:** OPEN
+**Labels:** ready-for-agent
+**Title:** Seeded food placement
+
+## Body
+## Parent
+
+alexisNorthcoders/snake-colyseus#30: Pure rules engine (prefactor). Read it first for why the engine exists and where it's heading.
+
+## What to build
+
+Every random choice the game rules make (which cell a pellet goes to, and which fruit it is, both at room creation and when a pellet respawns) comes from a random number generator passed in by the caller, not from `Math.random`. Each room creates its own generator from a random seed. With the same seed, a room lays out exactly the same food. This is the first step towards replaying a whole game from its seed.
+
+**Decisions:**
+
+- Add a small seedable pseudo-random generator in the repo (for example mulberry32: a few lines, with no new dependency). It returns `() => number` in [0, 1), like `Math.random`.
+- It lives in the new engine directory, the self-contained home for the rules that the rest of #30 fills. The engine directory never imports from `rooms/`, the schema, or Colyseus.
+- Every function that makes a random choice for the rules takes the generator as a parameter: the fruit type, the initial food layout, and `pickFreeCell`. **Remove the `Math.random` default** from `pickFreeCell`, so forgetting to pass one is a compile error.
+- The room keeps one generator per room, created at room creation from a random seed, and passes it to every food call. The cosmetic `backgroundNumber` isn't a game rule and can keep using `Math.random`.
+- Gameplay doesn't change.
+
+## Acceptance criteria
+
+- [ ] `Math.random` isn't called anywhere in food placement or respawn
+- [ ] Two food layouts made from the same seed are identical, and two made from different seeds differ (unit test, no room)
+- [ ] Respawning from a given seed and board state lands on the same cell and fruit every time (unit test)
+- [ ] Every existing test passes unchanged, in particular `FoodPlacement` and `FoodRespawn`
+
+## Blocked by
+
+None - can start immediately
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+--- (PM2 / parent-process constraints prepended for agent) ---
+
+[out] → Bash: git log --oneline -3 && ls && cat package.json && find src test* -type f 2>/dev…
+[out] → Bash: cat src/gameConfig.ts && grep -n "generateFoodCoordinates\|randomFoodType\|pick…
+[out] → Bash: cat tsconfig.json && gh issue view 30 --json body -q .body && grep -rn "gameCon…
+[out] assistant: Plan: `src/engine/rng.ts` (mulberry32) and `src/engine/food.ts` (food rules moved out of `gameConfig`, rng required). Tests first.
+[out] → Bash: cat > test/SeededFood_test.ts <<'EOF' import assert from "assert"; import { cel…
+[out] assistant: Red. Now the engine modules.
+[out] → Bash: mkdir -p src/engine && cat > src/engine/rng.ts <<'EOF' /** A random source in […
+[out] assistant: Rewrap that doc comment, then wire up the room.
+[out] → Bash: python3 - <<'EOF' p='src/engine/food.ts'; s=open(p).read() s=s.replace(" * cand…
+[out] assistant: Comment landed in the wrong spot; fix it.
+[out] → Bash: python3 - <<'EOF' p='src/rooms/SnakeRoom.ts'; s=open(p).read() bad=""" // Serve…
+[out] → Bash: python3 - <<'EOF' p='test/FoodPlacement_test.ts'; s=open(p).read() s=s.replace(…
+[out] → Bash: sed -n 160,200p test/FoodRespawn_test.ts
+[out] → Bash: grep -n "frozenRoom = \|async function frozenRoom\|room\[\|as any" test/FoodRes…
+[out] → Bash: npx tsc --noEmit -p . && echo TSC OK; npm test 2>&1 | grep -E "passing|failing|…
+[out] assistant: Typecheck passes and all 107 tests pass. The engine doesn't import from `rooms/`, the schema or Colyseus. Now the review.
+[out] → Skill: mattpocock-skills:code-review
+[out] → Bash: ls docs/agents; ls *.md; git status --short
+[out] → Agent: Standards review of diff
+[out] → Bash: git diff f5dff05 && ls src/engine && cat src/engine/*.ts test/SeededFood_test.ts
+[out] → Agent: Spec review of diff
+[out] assistant: Both review agents are running; waiting for their reports.
+[out] → Bash: ls src src/* -d; head -5 src/bot.ts src/contants.ts 2>/dev/null; grep -n -i "se…
+[out] → Bash: gh issue view 31 --repo alexisNorthcoders/snake-colyseus; echo ======; gh issue…
+[out] → Bash: git diff f5dff05; echo =====; cat src/engine/rng.ts src/engine/food.ts test/See…
+[out] → Bash: ls CONTEXT.md docs/adr 2>&1; sed -n 5,12p src/bot.ts; grep -n "\[\"" test/*.ts …
+[out] → Bash: gh issue view 31 --repo alexisNorthcoders/snake-colyseus --json title,body -q '…
+[out] → Bash: grep -rn "Math.random\|randomFoodType\|pickFreeCell\|generateFoodCoordinates\|f…
+[out] assistant: Nothing in this diff breaks a documented rule. The only documented files are AGENTS.md/CLAUDE.md and README.md, and none of them set coding rules. `CONTEXT.md` and `docs/adr/` don't exist yet, even though AGENTS.md points to them. Everything below is a judgement call. **Conventions** - `src/engine/food.ts` and `src/engine/rng.ts` use 4-space indentation. That matches `gameConfig.ts`, where the code came from, but `src/bot.ts` (also plain logic, not config) uses 2. With no rule either way, 4 is …
+[out] assistant: Standards review is in; waiting for the spec review.
+[out] → Bash: sed -n 190,225p src/rooms/SnakeRoom.ts; git show f5dff05:test/FoodRespawn_test.…
+[out] assistant: I found no blocking problems. Every requirement in #31 is met. `tsc --noEmit` is clean, all 107 tests pass, and nothing outside `src/engine/` imports the food functions from the old place. **(a) Missing or partial** - "Each room creates its own generator from a random seed. With the same seed, a room lays out exactly the same food. This is the first step towards replaying a whole game from its seed." The room seeds its generator with `mulberry32(Math.floor(Math.random() * 2 ** 32))` (`/home/ale…
+[out] assistant: Both reviewers noticed the seed was thrown away, so I'll keep it on the room. I'll also tighten the comment and use the `Rng` type in the test.
+[out] → Bash: python3 - <<'EOF' p='src/rooms/SnakeRoom.ts'; s=open(p).read() old=""" // Serve…
+[out] → Bash: git add src test && git commit -q -F - <<'EOF' feat: Seeded food placement (#31…
+[out] assistant: Issue #31 is done and committed to `claude/issue-31-seeded-food-placement` as `f477278`. Typecheck is clean and all 107 tests pass. One catch: I had to change two existing tests, explained below. **What changed** - **New generator:** `src/engine/rng.ts` adds mulberry32 and an `Rng` type (`() => number` in [0, 1)), with no new dependency. - **Food rules moved:** `src/engine/food.ts` now holds `randomFoodType`, `pickFreeCell` and `generateFoodCoordinates`, taken out of `gameConfig.ts`. Each takes…
+[out] --- result: success turns=17 cost=$1.0372 ---
+[out] --- result: success turns=1 cost=$1.0372 ---
+[out] --- result: success turns=3 cost=$1.0372 ---
+
+--- process end ok=true exit=0 timedOut=false ---
