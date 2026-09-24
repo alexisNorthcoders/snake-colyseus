@@ -1,12 +1,13 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Phase, Player, Snake, Food, PlayerColors, newCoordinates } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { BotView, decide, rookieBotProfile } from "../bot";
-import { foodScore, gameConfig, spawnCells, startingPositions } from "../gameConfig";
-import { generateFoodCoordinates } from "../engine/food";
+import { foodScore, gameConfig } from "../gameConfig";
+import { layFood } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
+import { beginPlay, dealRound, removeFromPlay } from "../engine/round";
 import { tailCells } from "../engine/tail";
-import { isRoundOver, tick, turn as turnSnake } from "../engine/tick";
+import { tick, turn as turnSnake } from "../engine/tick";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
@@ -69,7 +70,7 @@ export class SnakeRoom extends Room<GameState> {
     this.countdownTimer?.clear();
     this.snapshots = [];
     this.transition("playing");
-    this.state.aliveCount = this.state.players.length;
+    beginPlay(this.state);
   }
 
   /** Lobby to countdown: locks the room, deals out spawns and starts the clock. Does nothing outside the lobby. */
@@ -88,27 +89,7 @@ export class SnakeRoom extends Room<GameState> {
 
     this.roundLeavers = [];
 
-    // Handed out together so no two snakes share a cell; the offset rolls
-    // on so the same seat doesn't start in the same corner every round.
-    const spawns = spawnCells(this.state.players.length, this.spawnOffset);
-    this.spawnOffset = (this.spawnOffset + spawns.length) % startingPositions.length;
-
-    this.state.players.forEach((player, i) => {
-      const position = spawns[i];
-      player.snake.x = position.x;
-      player.snake.y = position.y;
-
-      // Set initial direction to right; a turn during the countdown
-      // overwrites it and becomes the first move.
-      player.snake.direction.x = 1;
-      player.snake.direction.y = 0;
-      player.snake.movedDirection = { x: 1, y: 0 };
-
-      player.snake.isDead = false;
-      player.snake.size = 1;
-      player.snake.score = 0;
-      player.snake.setTail([]);
-    });
+    this.spawnOffset = dealRound(this.state, this.spawnOffset, newCoordinates);
 
     console.log("[SnakeRoom] All snake positions initialized");
 
@@ -211,14 +192,7 @@ export class SnakeRoom extends Room<GameState> {
       this.seatBot();
     }
 
-    generateFoodCoordinates(this.rng).forEach((placement) => {
-      const food = new Food();
-      food.x = placement.x;
-      food.y = placement.y;
-      food.index = placement.index;
-      food.type = placement.type;
-      this.state.foodCoordinates.push(food);
-    });
+    layFood(this.state, this.rng, newFood);
 
     // Patches are flushed by hand at the end of each simulation tick (below),
     // so turn off Colyseus's independent 20 Hz patch timer. Left on, a move
@@ -328,17 +302,14 @@ export class SnakeRoom extends Room<GameState> {
   onLeave(client: Client) {
     const index = this.state.players.findIndex(p => p.id === client.sessionId);
     if (index !== -1) {
-      const player = this.state.players[index];
-      if (!player.snake.isDead && this.inRound) {
-        this.state.aliveCount--;
-      }
-      if (this.inRound) {
-        this.roundLeavers.push({ id: player.id, name: player.name, score: player.snake.score });
-      }
-      this.state.players.splice(index, 1);
+      const [player] = this.state.players.splice(index, 1);
+      if (!this.inRound) return;
 
-      // A leaver can be the one that leaves a single snake standing.
-      if (this.inRound && isRoundOver(this.state)) this.endRound();
+      this.roundLeavers.push({ id: player.id, name: player.name, score: player.snake.score });
+
+      // A leaver can be the one that leaves a single snake standing. Taken
+      // out of the synced list first, so marking the snake dead never syncs.
+      if (removeFromPlay(this.state, player.snake).roundOver) this.endRound();
     }
   }
 

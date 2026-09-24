@@ -70,3 +70,15 @@ export const generateFoodCoordinates = (rng: Rng): FoodPlacement[] => {
 
     return placements;
 };
+
+/**
+ * Lays out the board's opening food from `rng`, making each pellet with
+ * `newFood`: a schema `Food` in the room, a plain placement in a headless game.
+ */
+export const layFood = <F extends FoodPlacement>(
+    game: { foodCoordinates: { push(food: F): unknown } },
+    rng: Rng,
+    newFood: (placement: FoodPlacement) => F
+) => {
+    generateFoodCoordinates(rng).forEach((placement) => game.foodCoordinates.push(newFood(placement)));
+};

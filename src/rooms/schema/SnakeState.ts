@@ -1,6 +1,7 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
 import { DirectionVector } from "../../contants";
 import { Cell, gameConfig } from "../../gameConfig";
+import { FoodPlacement } from "../../engine/food";
 import { advanceTail, growTail, setTail } from "../../engine/tail";
 
 // Re-exported so readers of the schema keep one import for the tail's body order.
@@ -89,6 +90,16 @@ export class Food extends Schema {
     @type("number") index: number = 0;
     @type("string") type: string = "redApple";
 }
+
+/** A synced pellet from a placement the engine picked. */
+export const newFood = ({ x, y, index, type }: FoodPlacement) => {
+    const food = new Food();
+    food.x = x;
+    food.y = y;
+    food.index = index;
+    food.type = type;
+    return food;
+};
 
 export type Phase = "lobby" | "countdown" | "playing" | "ended";
 
