@@ -17,6 +17,9 @@ export interface SnakeShape<C extends Cell> extends TailRing<C>, Cell {
     movedDirection: DirectionVector;
     size: number;
     score: number;
+    // Ticks since the snake last ate, from 0 when the round starts. Only
+    // counted in an endless round, where it starves the snake (see `starve`).
+    hunger: number;
     isDead: boolean;
 }
 
@@ -40,8 +43,11 @@ export interface GameShape<C extends Cell> {
     ticksLeft?: number;
 }
 
-/** How a snake died. `body` is another snake's body; running into your own is `self`. */
-export type DeathCause = "self" | "body" | "head-on";
+/**
+ * How a snake died. `body` is another snake's body; running into your own is
+ * `self`. `starved` is a score drained below 0 in an endless round.
+ */
+export type DeathCause = "self" | "body" | "head-on" | "starved";
 
 /** A survivor ate `food`, as it was before it respawned, gaining `score` points. */
 export interface AteEvent {
@@ -51,7 +57,7 @@ export interface AteEvent {
     score: number;
 }
 
-/** A snake died of `cause`, running into `by` unless it was its own doing. */
+/** A snake died of `cause`, running into `by` unless it was its own doing or it starved. */
 export interface DiedEvent {
     kind: "died";
     player: string;
@@ -119,7 +125,10 @@ export const turn = (snake: Pick<SnakeShape<Cell>, "direction" | "movedDirection
 
 /**
  * One tick, resolved simultaneously: every live snake moves, then collisions
- * are judged against where everyone ended up, then the survivors eat. Judging
+ * are judged against where everyone ended up, then the survivors eat, then in
+ * an endless round those that didn't eat go hungry and may starve. Starving
+ * after eating means a snake that eats on the tick it would have starved is
+ * saved. Everyone who crashed or starved dies together at the end. Judging
  * each snake as it moved made the outcome depend on join order and let two
  * heads meeting on one cell slip past each other.
  *
@@ -135,19 +144,30 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
         return [player, { from, to: cellKey(player.snake.x, player.snake.y) }];
     }));
 
-    const crashes = findCrashed(moves);
+    const dying = findCrashed(moves);
 
     // A snake that died this tick doesn't eat on its way out: the points
     // would still count towards the final ranking, and the pellet it landed
     // on stays on the board.
     const meals: AteEvent[] = [];
     live.forEach((player) => {
-        if (crashes.has(player)) return;
+        if (dying.has(player)) return;
         const ate = eat(game, player, rng, newCell);
         if (ate) meals.push(ate);
     });
 
-    const deaths = killAll(game, crashes);
+    // Starved snakes join the crashed ones in `dying`, so they die together
+    // and are reported after them.
+    if (game.mode === "endless") {
+        const fed = new Set(meals.map((meal) => meal.player));
+        live.forEach((player) => {
+            if (dying.has(player)) return;
+            if (fed.has(player.id)) player.snake.hunger = 0;
+            else if (starve(player.snake)) dying.set(player, { cause: "starved" });
+        });
+    }
+
+    const deaths = killAll(game, dying);
 
     // A timed game runs against the clock once play began with a limit, and
     // the tick that uses up the last of it ends the round, whoever is left.
@@ -158,6 +178,21 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
     }
 
     return { events: [...meals, ...deaths.events], ...roundResult(game, deaths.roundOver || timeUp) };
+};
+
+/**
+ * One more tick without food: once the snake has gone `hungerTicks` ticks
+ * hungry its score drops by `starveDrain`, on that tick and every
+ * `starveDrainTicks` after. Snakes never shrink. Says whether the score is
+ * now below 0, which starves the snake.
+ */
+const starve = (snake: SnakeShape<Cell>) => {
+    const { hungerTicks, starveDrain, starveDrainTicks } = rulesConfig;
+    snake.hunger++;
+
+    const overdue = snake.hunger - hungerTicks;
+    if (overdue >= 0 && overdue % starveDrainTicks === 0) snake.score -= starveDrain;
+    return snake.score < 0;
 };
 
 const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
@@ -256,8 +291,8 @@ const occupiedCells = (game: GameShape<Cell>, ignore?: FoodShape) => {
     return occupied;
 };
 
-/** How a snake crashed, and into whom unless it was its own body. */
-interface Crash<P> {
+/** How a snake died, and into whom unless it was its own body or it starved. */
+interface Death<P> {
     cause: DeathCause;
     by?: P;
 }
@@ -300,7 +335,7 @@ const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; 
         .filter((other) => other !== player)
         .sort((a, b) => order.get(a)! - order.get(b)!)[0];
 
-    const crashed = new Map<P, Crash<P>>();
+    const crashed = new Map<P, Death<P>>();
     moves.forEach(({ from, to }, player) => {
         const headOn = firstOther(player, heads.get(to), steps.get(`${to}>${from}`));
         const body = firstOther(player, bodies.get(to));
@@ -313,23 +348,23 @@ const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; 
 };
 
 /**
- * Kills everyone in `crashes` before deciding whether the round is over, so
- * snakes that die together all miss out on the win — ending the round on the
- * first of them would crown one that is about to die too. A tick where nobody
- * dies never ends the round.
+ * Kills everyone in `dying`, crashed or starved, before deciding whether the
+ * round is over, so snakes that die together all miss out on the win — ending
+ * the round on the first of them would crown one that is about to die too. A
+ * tick where nobody dies never ends the round.
  */
 const killAll = <P extends PlayerShape<Cell>>(
     game: GameShape<Cell>,
-    crashes: Map<P, Crash<P>>
+    dying: Map<P, Death<P>>
 ): { events: DiedEvent[]; roundOver: boolean } => {
-    if (crashes.size === 0) return { events: [], roundOver: false };
+    if (dying.size === 0) return { events: [], roundOver: false };
 
     const events: DiedEvent[] = [];
-    crashes.forEach(({ cause, by }, player) => {
+    dying.forEach(({ cause, by }, player) => {
         player.snake.isDead = true;
         events.push({ kind: "died", player: player.id, cause, ...(by && { by: by.id }) });
     });
-    game.aliveCount -= crashes.size;
+    game.aliveCount -= dying.size;
 
     return { events, roundOver: isRoundOver(game) };
 };

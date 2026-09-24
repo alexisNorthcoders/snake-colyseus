@@ -12,7 +12,7 @@
  * Bump this whenever a rule changes, so a recorded game is only ever replayed
  * under the rules it was played by.
  */
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 
 // The values the rules are played by, and the board's cells.
 export type { Cell } from "./config";

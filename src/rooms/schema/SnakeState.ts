@@ -1,5 +1,5 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
-import { Cell, DirectionVector, FoodPlacement, GameMode, advanceTail, growTail, setTail } from "../../engine";
+import { Cell, DirectionVector, FoodPlacement, GameMode, advanceTail, growTail, rulesConfig, setTail } from "../../engine";
 import { gameConfig } from "../../gameConfig";
 
 // Re-exported so readers of the schema keep one import for the tail's body order.
@@ -33,6 +33,9 @@ export class Snake extends Schema {
     @type("boolean") isDead: boolean = false;
     @type("number") score: number = 0;
     @type("number") size: number = 0;
+    // Ticks since the snake last ate. Counted in an endless round only: the
+    // score starts draining once it reaches the game's `hungerTicks`.
+    @type("number") hunger: number = 0;
     @type(Coordinates) direction: Coordinates = new Coordinates();
     @type("string") playerId: string = "";
 
@@ -113,6 +116,9 @@ export class GameState extends Schema {
     @type("number") aliveCount: number = 0;
     // Ticks left in a timed round, counted down each tick; this times `tickMs` is the ms left. Unused in an endless round.
     @type("number") ticksLeft: number = 0;
+    // Ticks a snake can go without food before its score starts draining in
+    // an endless round, so clients know when to show the hunger bar.
+    @type("number") hungerTicks: number = rulesConfig.hungerTicks;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();
     @type([Food]) foodCoordinates = new ArraySchema<Food>();

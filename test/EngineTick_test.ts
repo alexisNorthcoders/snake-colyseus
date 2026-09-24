@@ -29,6 +29,7 @@ const plainPlayer = (id: string, head: Cell, direction: Cell, tail: Cell[] = [])
     tailCursor: 0,
     size: tail.length + 1,
     score: 0,
+    hunger: 0,
     isDead: false
   };
   setTail(snake, tail, newPlainCell);
