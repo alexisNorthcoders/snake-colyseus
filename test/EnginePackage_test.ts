@@ -33,7 +33,14 @@ describe("engine package", () => {
   });
 
   it("builds on a git install and ships the build, which git ignores", () => {
-    assert.strictEqual(pkg.scripts.prepare, "npm run build");
-    assert.ok(pkg.files.includes(tsconfig.compilerOptions.outDir), "the build isn't packed");
+    const outDir = tsconfig.compilerOptions.outDir;
+    assert.ok(readFileSync(join(root, ".gitignore"), "utf8").split("\n").includes(outDir), "the build is committed");
+    assert.match(pkg.scripts.prepare, /npm run build$/);
+    assert.ok(pkg.files.includes(outDir), "the build isn't packed");
+  });
+
+  // A prod install that leaves out devDependencies has no tsc to build with.
+  it("skips the build on install when there's no tsc", () => {
+    assert.match(pkg.scripts.prepare, /^tsc --version .*\|\| exit 0;/);
   });
 });
