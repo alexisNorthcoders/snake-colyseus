@@ -43,6 +43,7 @@ const diedIn = (report: TickReport) => ({
 const right = { x: 1, y: 0 };
 const left = { x: -1, y: 0 };
 const down = { x: 0, y: 1 };
+const up = { x: 0, y: -1 };
 
 describe("engine tick", () => {
   it("moves every live snake and wraps round the board's edge", () => {
@@ -181,8 +182,6 @@ describe("engine tick", () => {
 });
 
 describe("engine tick events", () => {
-  const up = { x: 0, y: -1 };
-
   it("reports running into your own tail as self, with no by", () => {
     // Heading up into its own body, which curls round from (5, 4) to (5, 6).
     const game = plainGame([

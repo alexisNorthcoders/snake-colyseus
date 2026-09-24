@@ -41,7 +41,7 @@ export type DeathCause = "self" | "body" | "head-on";
 export interface AteEvent {
     kind: "ate";
     player: string;
-    food: Cell & { type: string };
+    food: Omit<FoodShape, "index">;
     score: number;
 }
 
@@ -98,19 +98,20 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
         return [player, { from, to: cellKey(player.snake.x, player.snake.y) }];
     }));
 
-    const dying = findCrashed(moves);
+    const crashes = findCrashed(moves);
 
     // A snake that died this tick doesn't eat on its way out: the points
     // would still count towards the final ranking, and the pellet it landed
     // on stays on the board.
-    const events: TickEvent[] = [];
+    const meals: AteEvent[] = [];
     live.forEach((player) => {
-        if (dying.has(player)) return;
+        if (crashes.has(player)) return;
         const ate = eat(game, player, rng, newCell);
-        if (ate) events.push(ate);
+        if (ate) meals.push(ate);
     });
 
-    return killAll(game, dying, events);
+    const deaths = killAll(game, crashes);
+    return { events: [...meals, ...deaths.events], roundOver: deaths.roundOver };
 };
 
 const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
@@ -209,6 +210,7 @@ const occupiedCells = (game: GameShape<Cell>, ignore?: FoodShape) => {
     return occupied;
 };
 
+/** How a snake crashed, and into whom unless it was its own body. */
 interface Crash<P> {
     cause: DeathCause;
     by?: P;
@@ -228,7 +230,8 @@ interface Crash<P> {
  * passed through, and so never show up as `by`.
  */
 const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; to: string }>) => {
-    // Each cell's snakes, in player order since `moves` is walked in it.
+    // Each cell's snakes, in player order since `moves` is walked in it. A
+    // head-on merges two of these lists, so `firstOther` re-sorts.
     const bodies = new Map<string, P[]>();
     const heads = new Map<string, P[]>();
     const steps = new Map<string, P[]>();
@@ -264,25 +267,23 @@ const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; 
 };
 
 /**
- * Kills everyone in `dying` before deciding whether the round is over, so
+ * Kills everyone in `crashes` before deciding whether the round is over, so
  * snakes that die together all miss out on the win — ending the round on the
  * first of them would crown one that is about to die too. A tick where nobody
  * dies never ends the round.
  */
 const killAll = <P extends PlayerShape<Cell>>(
     game: GameShape<Cell>,
-    dying: Map<P, Crash<P>>,
-    events: TickEvent[]
-): TickReport => {
-    if (dying.size === 0) return { events, roundOver: false };
+    crashes: Map<P, Crash<P>>
+): { events: DiedEvent[]; roundOver: boolean } => {
+    if (crashes.size === 0) return { events: [], roundOver: false };
 
-    dying.forEach(({ cause, by }, player) => {
+    const events: DiedEvent[] = [];
+    crashes.forEach(({ cause, by }, player) => {
         player.snake.isDead = true;
-        events.push(by
-            ? { kind: "died", player: player.id, cause, by: by.id }
-            : { kind: "died", player: player.id, cause });
+        events.push({ kind: "died", player: player.id, cause, ...(by && { by: by.id }) });
     });
-    game.aliveCount -= dying.size;
+    game.aliveCount -= crashes.size;
 
     return { events, roundOver: isRoundOver(game) };
 };
