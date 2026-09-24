@@ -3,6 +3,7 @@ import { DirectionVector } from "../../contants";
 import { Cell, gameConfig } from "../../gameConfig";
 import { advanceTail, growTail, setTail } from "../../engine/tail";
 
+// Re-exported so readers of the schema keep one import for the tail's body order.
 export { tailCells } from "../../engine/tail";
 
 export class Coordinates extends Schema {

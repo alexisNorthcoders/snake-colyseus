@@ -54,14 +54,14 @@ export const advanceTail = <C extends Cell>(ring: TailRing<C>, vacated: Cell) =>
  * is first rewritten oldest first from slot 0 — O(length), but only once
  * per pellet — and the new segment appended as the oldest of all.
  */
-export const growTail = <C extends Cell>(snake: TailRing<C> & Cell, newCell: NewCell<C>) => {
-    const cells = tailCells(snake);
-    const end = cells[cells.length - 1] ?? { x: snake.x, y: snake.y };
+export const growTail = <C extends Cell>(ring: TailRing<C> & Cell, newCell: NewCell<C>) => {
+    const cells = tailCells(ring);
+    const end = cells[cells.length - 1] ?? { x: ring.x, y: ring.y };
 
-    if (snake.tailCursor !== 0) writeOldestFirst(snake, cells, newCell);
+    if (ring.tailCursor !== 0) writeOldestFirst(ring, cells, newCell);
 
-    snake.tail.push(newCell(end.x, end.y));
-    snake.tailCursor = snake.tail.length - 1;
+    ring.tail.push(newCell(end.x, end.y));
+    ring.tailCursor = ring.tail.length - 1;
 };
 
 /**
