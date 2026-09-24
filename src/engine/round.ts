@@ -39,9 +39,16 @@ export const dealRound = <C extends Cell>(
     return (offset + spawns.length) % startingPositions.length;
 };
 
-/** The snakes start moving: everyone still in the game is counted alive. */
-export const beginPlay = (game: Pick<GameShape<Cell>, "players" | "aliveCount">) => {
+/**
+ * The snakes start moving: everyone still in the game is counted alive, and a
+ * timed game's clock starts at `tickLimit` ticks. An endless game ignores it.
+ */
+export const beginPlay = (
+    game: Pick<GameShape<Cell>, "players" | "aliveCount" | "mode" | "ticksLeft">,
+    tickLimit?: number
+) => {
     game.aliveCount = [...game.players].length;
+    if (game.mode !== "endless" && tickLimit !== undefined) game.ticksLeft = tickLimit;
 };
 
 /**
