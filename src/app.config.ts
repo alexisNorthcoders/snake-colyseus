@@ -6,14 +6,22 @@ import { playground } from "@colyseus/playground";
  * Import your Room files
  */
 import { SnakeRoom } from "./rooms/SnakeRoom";
+import { modeOf } from "./engine";
 
 export default config({
     initializeGameServer: (gameServer) => {
         /**
          * Define your room handlers:
          */
-        // Rooms are matched by speed: a joinOrCreate never lands in a room at another speed.
-        gameServer.define('snake', SnakeRoom).filterBy(['speed']);
+        // Rooms are matched by speed and mode: a joinOrCreate never lands in a
+        // room at another speed or of another mode.
+        const snake = gameServer.define('snake', SnakeRoom).filterBy(['speed', 'mode']);
+        // A missing option is left out of the filter, so a join that sends no
+        // mode would match rooms of every mode. The mode is always filled in
+        // instead, the way the room reads it, for the room's listing and for
+        // every join alike: a modeless client only ever meets timed rooms.
+        const filterOptions = snake.getFilterOptions.bind(snake);
+        snake.getFilterOptions = (options) => ({ ...filterOptions(options), mode: modeOf(options?.mode) });
     },
     initializeExpress: (app) => {
         /**

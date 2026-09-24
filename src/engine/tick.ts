@@ -1,6 +1,7 @@
 import { Cell, cellKey, foodScore, rulesConfig } from "./config";
 import { Direction, DirectionVector, directionMap } from "./direction";
 import { FoodPlacement, pickFreeCell, randomFoodType } from "./food";
+import { GameMode } from "./mode";
 import { Rng } from "./rng";
 import { NewCell, TailRing, advanceTail, growTail } from "./tail";
 
@@ -32,6 +33,9 @@ export interface GameShape<C extends Cell> {
     players: Iterable<PlayerShape<C>>;
     foodCoordinates: Iterable<FoodShape>;
     aliveCount: number;
+    // Fixed when the game is created; a game without one is timed. No rule
+    // reads it yet.
+    mode?: GameMode;
 }
 
 /** How a snake died. `body` is another snake's body; running into your own is `self`. */
