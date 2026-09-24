@@ -1,6 +1,6 @@
 import assert from "assert";
 
-import { cellKey } from "../src/engine/config";
+import { cellKey } from "../src/engine";
 import { gameConfig } from "../src/gameConfig";
 import { generateFoodCoordinates, pickFreeCell } from "../src/engine/food";
 

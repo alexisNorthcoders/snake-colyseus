@@ -5,7 +5,7 @@ import { getStateCallbacks } from "colyseus.js";
 import appConfig from "../src/app.config";
 import { Food, GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { cellKey } from "../src/engine/config";
+import { cellKey } from "../src/engine";
 import { gameConfig } from "../src/gameConfig";
 import { joinOptions, waitForState } from "./helpers";
 

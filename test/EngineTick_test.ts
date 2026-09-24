@@ -1,11 +1,20 @@
 import assert from "assert";
 
-import { Cell, foodScore } from "../src/engine/config";
+import {
+  Cell,
+  Direction,
+  GameShape,
+  PlayerShape,
+  TickReport,
+  foodScore,
+  mulberry32,
+  newPlainCell,
+  setTail,
+  tailCells,
+  tick,
+  turn
+} from "../src/engine";
 import { gameConfig } from "../src/gameConfig";
-import { Direction } from "../src/engine/direction";
-import { mulberry32 } from "../src/engine/rng";
-import { newPlainCell, setTail, tailCells } from "../src/engine/tail";
-import { GameShape, PlayerShape, TickReport, tick, turn } from "../src/engine/tick";
 
 type PlainPlayer = PlayerShape<Cell>;
 type PlainGame = GameShape<Cell> & { players: PlainPlayer[] };

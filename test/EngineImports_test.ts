@@ -2,11 +2,9 @@ import assert from "assert";
 import { readdirSync, readFileSync } from "fs";
 import { dirname, join, relative, resolve } from "path";
 
-const engineDir = join(__dirname, "../src/engine");
+import { specifiers } from "./helpers";
 
-/** Every module a file names: `import ... from`, bare `import`, `export ... from`, `require` and dynamic `import()`. */
-const specifiers = (source: string) =>
-  [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g)].map((m) => m[1]);
+const engineDir = join(__dirname, "../src/engine");
 
 const forbidden = [/(^|\/)rooms(\/|$)/, /schema/i, /colyseus/i];
 

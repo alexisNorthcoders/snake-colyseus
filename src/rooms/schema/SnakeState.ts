@@ -1,12 +1,9 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
-import { DirectionVector } from "../../engine/direction";
+import { Cell, DirectionVector, FoodPlacement, advanceTail, growTail, setTail } from "../../engine";
 import { gameConfig } from "../../gameConfig";
-import { Cell } from "../../engine/config";
-import { FoodPlacement } from "../../engine/food";
-import { advanceTail, growTail, setTail } from "../../engine/tail";
 
 // Re-exported so readers of the schema keep one import for the tail's body order.
-export { tailCells } from "../../engine/tail";
+export { tailCells } from "../../engine";
 
 export class Coordinates extends Schema {
     @type("number") x: number = 0;

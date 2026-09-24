@@ -1,5 +1,4 @@
-import { Direction, directionMap } from "./engine/direction";
-import { Cell, cellKey } from "./engine/config";
+import { Cell, Direction, cellKey, directionMap } from "./engine";
 
 /** Everything a human player could see this tick, as plain data. */
 export interface BotView {

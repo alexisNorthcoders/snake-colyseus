@@ -1,13 +1,25 @@
 import assert from "assert";
 
-import { Cell, spawnCells, startingPositions } from "../src/engine/config";
-import { Direction } from "../src/engine/direction";
-import { RULES_VERSION } from "../src/engine";
-import { FoodPlacement, layFood } from "../src/engine/food";
-import { mulberry32 } from "../src/engine/rng";
-import { beginPlay, dealRound, removeFromPlay } from "../src/engine/round";
-import { newPlainCell, setTail, tailCells } from "../src/engine/tail";
-import { GameShape, PlayerShape, tick, turn } from "../src/engine/tick";
+import {
+  Cell,
+  Direction,
+  FoodPlacement,
+  GameShape,
+  PlayerShape,
+  RULES_VERSION,
+  beginPlay,
+  dealRound,
+  layFood,
+  mulberry32,
+  newPlainCell,
+  removeFromPlay,
+  setTail,
+  startingPositions,
+  tailCells,
+  tick,
+  turn
+} from "../src/engine";
+import { spawnCells } from "../src/engine/config";
 
 type PlainPlayer = PlayerShape<Cell>;
 type PlainGame = GameShape<Cell> & { players: PlainPlayer[]; foodCoordinates: FoodPlacement[] };

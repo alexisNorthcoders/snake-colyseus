@@ -1,8 +1,7 @@
 import assert from "assert";
 
 import { Snake } from "../src/rooms/schema/SnakeState";
-import { Cell } from "../src/engine/config";
-import { advanceTail, growTail, newPlainCell, setTail, tailCells } from "../src/engine/tail";
+import { Cell, advanceTail, growTail, newPlainCell, setTail, tailCells } from "../src/engine";
 
 type Step = { advance: Cell } | "grow";
 
