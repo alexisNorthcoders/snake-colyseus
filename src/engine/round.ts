@@ -33,6 +33,7 @@ export const dealRound = <C extends Cell>(
         snake.isDead = false;
         snake.size = 1;
         snake.score = 0;
+        snake.hunger = 0;
         setTail(snake, [], newCell);
     });
 
@@ -41,7 +42,8 @@ export const dealRound = <C extends Cell>(
 
 /**
  * The snakes start moving: everyone still in the game is counted alive, and a
- * timed game's clock starts at `tickLimit` ticks. An endless game ignores it.
+ * timed game's clock starts at `tickLimit` ticks. An endless game ignores it;
+ * its snakes' hunger clocks start from the 0 `dealRound` left them at.
  */
 export const beginPlay = (
     game: Pick<GameShape<Cell>, "players" | "aliveCount" | "mode" | "ticksLeft">,

@@ -85,6 +85,7 @@ describe("headless round through the entry point", () => {
     tailCursor: 0,
     size: 0,
     score: 0,
+    hunger: 0,
     isDead: true
   });
 

@@ -34,6 +34,7 @@ const staleSnake = () => {
     tailCursor: 0,
     size: 3,
     score: 90,
+    hunger: 37,
     isDead: true
   };
   setTail(snake, [{ x: 3, y: 8 }, { x: 3, y: 9 }], newPlainCell);
@@ -49,7 +50,7 @@ const plainGame = (ids: string[]): PlainGame => ({
 const copyPlacement = (placement: FoodPlacement) => ({ ...placement });
 
 describe("engine round start", () => {
-  it("deals each snake its spawn cell, heading right, alive, with no tail or score", () => {
+  it("deals each snake its spawn cell, heading right, alive and not hungry, with no tail or score", () => {
     const game = plainGame(["a", "b", "c"]);
 
     dealRound(game, 1, newPlainCell);
@@ -62,6 +63,7 @@ describe("engine round start", () => {
       assert.strictEqual(snake.isDead, false);
       assert.strictEqual(snake.size, 1);
       assert.strictEqual(snake.score, 0);
+      assert.strictEqual(snake.hunger, 0);
       assert.deepStrictEqual(tailCells(snake), []);
     });
   });
@@ -192,6 +194,6 @@ describe("headless round and replay", () => {
 
 describe("RULES_VERSION", () => {
   it("is exported", () => {
-    assert.strictEqual(RULES_VERSION, 1);
+    assert.strictEqual(RULES_VERSION, 2);
   });
 });

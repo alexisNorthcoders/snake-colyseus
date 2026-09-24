@@ -9,6 +9,13 @@ export const rulesConfig = {
     scaleFactor: 20,
     // Pellets on the board at once.
     foodStorage: 20,
+    // Starvation, in endless rounds only: once a snake has gone
+    // `hungerTicks` ticks without food its score drops by `starveDrain`,
+    // and again every `starveDrainTicks` ticks until it eats. A score
+    // below 0 starves it.
+    hungerTicks: 80,
+    starveDrain: 5,
+    starveDrainTicks: 8,
 }
 
 /**
