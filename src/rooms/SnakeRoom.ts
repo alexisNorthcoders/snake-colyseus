@@ -1,11 +1,12 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Phase, Player, Snake, Food, PlayerColors } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, Food, PlayerColors, newCoordinates } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { BotView, decide, rookieBotProfile } from "../bot";
-import { cellKey, foodScore, gameConfig, spawnCells, startingPositions } from "../gameConfig";
-import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../engine/food";
+import { foodScore, gameConfig, spawnCells, startingPositions } from "../gameConfig";
+import { generateFoodCoordinates } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
 import { tailCells } from "../engine/tail";
+import { isRoundOver, tick, turn as turnSnake } from "../engine/tick";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
@@ -123,20 +124,12 @@ export class SnakeRoom extends Room<GameState> {
     }, gameConfig.countdownTickMs);
   }
 
-  /** Points the snake in direction `key`, ignoring anything that isn't a direction or would reverse it. */
+  /** Points the snake in direction `key`, ignoring anything that isn't a direction. The engine ignores reversals. */
   private turn(snake: Snake, key: unknown) {
     // hasOwn, not a plain lookup: a key like "toString" would otherwise
     // find a prototype method and write undefined into the synced state.
     if (typeof key !== "string" || !Object.hasOwn(directionMap, key)) return;
-    const turn = directionMap[key as Direction];
-
-    // Reversing would step the head straight back onto the body, so a
-    // reversal is ignored rather than left to kill the snake.
-    const moved = snake.movedDirection;
-    if (turn.x === -moved.x && turn.y === -moved.y) return;
-
-    snake.direction.x = turn.x;
-    snake.direction.y = turn.y;
+    turnSnake(snake, key as Direction);
   }
 
   /**
@@ -345,169 +338,17 @@ export class SnakeRoom extends Room<GameState> {
       this.state.players.splice(index, 1);
 
       // A leaver can be the one that leaves a single snake standing.
-      if (this.inRound && this.state.aliveCount <= 1) this.endRound();
+      if (this.inRound && isRoundOver(this.state)) this.endRound();
     }
   }
 
-  /**
-   * One tick, resolved simultaneously: every live snake moves, then collisions
-   * are judged against where everyone ended up, then the survivors eat. Judging
-   * each snake as it moved made the outcome depend on join order and let two
-   * heads meeting on one cell slip past each other.
-   */
+  /** One tick: the bots steer, then the engine runs the rules and says whether the round is over. */
   update() {
     if (!this.inRound) return;
 
     this.steerBots();
 
-    const live = this.state.players.filter((player) => player.snake && !player.snake.isDead);
-
-    const moves = new Map(live.map((player) => {
-      const from = cellKey(player.snake.x, player.snake.y);
-      this.moveSnake(player.snake);
-      return [player, { from, to: cellKey(player.snake.x, player.snake.y) }];
-    }));
-
-    const dying = this.findCrashed(moves);
-
-    // A snake that died this tick doesn't eat on its way out: the points
-    // would still count towards the final ranking, and the pellet it landed
-    // on stays on the board.
-    live.forEach((player) => {
-      if (!dying.has(player)) this.checkFoodCollision(player);
-    });
-
-    this.handleDeaths(dying);
-  }
-
-  private moveSnake(snake: Snake) {
-    const prevX = snake.x;
-    const prevY = snake.y;
-
-    snake.x += snake.direction.x;
-    snake.y += snake.direction.y;
-    snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
-
-    if (snake.x >= gameConfig.scaleFactor) {
-      snake.x = 0;
-    } else if (snake.x < 0) {
-      snake.x = gameConfig.scaleFactor - 1;
-    }
-
-    if (snake.y >= gameConfig.scaleFactor) {
-      snake.y = 0;
-    } else if (snake.y < 0) {
-      snake.y = gameConfig.scaleFactor - 1;
-    }
-
-    snake.advanceTail({ x: prevX, y: prevY });
-  }
-
-  private checkFoodCollision(player: Player) {
-    const food = this.state.foodCoordinates.find(food =>
-      food.x === player.snake.x && food.y === player.snake.y
-    );
-
-    if (food) {
-      player.snake.size++;
-      player.snake.score += foodScore[food.type];
-      player.snake.growTail();
-
-      this.respawnFood(food);
-    }
-  }
-
-  /**
-   * Moves an eaten pellet to a free cell, in place. Splicing it out and pushing
-   * a replacement would shift every later index, making the patch carry the
-   * whole food array instead of the three fields that actually changed.
-   *
-   * A pellet that lands on a snake or on another pellet is a ghost the player
-   * can never eat, since food collision only ever finds the first entry for a
-   * cell. When there is nowhere free left at all — the snakes and the other
-   * pellets between them covering every cell on the board — the pellet stays
-   * where it is, under the head that just ate it, and becomes eatable again as
-   * soon as the snake's tail moves off it.
-   */
-  private respawnFood(food: Food) {
-    const occupied = this.occupiedCells(food);
-    const cell = pickFreeCell((x, y) => occupied.has(cellKey(x, y)), this.rng);
-
-    if (!cell) return;
-
-    food.x = cell.x;
-    food.y = cell.y;
-    food.type = randomFoodType(this.rng);
-  }
-
-  /**
-   * Every cell a new pellet has to stay off: snake heads, snake bodies and the
-   * pellets already on the board. `ignore` leaves out the pellet being moved,
-   * whose own cell is up for grabs again.
-   *
-   * Dead snakes count: their bodies stay on the board until the next round, so
-   * a pellet underneath one would look just as unreachable as a real ghost.
-   */
-  private occupiedCells(ignore?: Food) {
-    const occupied = new Set<string>();
-
-    this.state.players.forEach((player) => {
-      const snake = player.snake;
-      if (!snake) return;
-
-      occupied.add(cellKey(snake.x, snake.y));
-      snake.tail.forEach((segment) => occupied.add(cellKey(segment.x, segment.y)));
-    });
-
-    this.state.foodCoordinates.forEach((food) => {
-      if (food !== ignore) occupied.add(cellKey(food.x, food.y));
-    });
-
-    return occupied;
-  }
-
-  /**
-   * The live snakes, given with the cell each head moved from and to this
-   * tick, that crashed: landed on a body segment (their own or anyone else's),
-   * on another head, or swapped cells with another head — two tailless snakes
-   * side by side would otherwise cross without ever sharing a cell. Every
-   * occupied cell is counted once up front, so the cost follows the total
-   * number of segments rather than players squared.
-   *
-   * Dead snakes aren't counted: their bodies stay on the board but can be
-   * passed through.
-   */
-  private findCrashed(moves: Map<Player, { from: string; to: string }>) {
-    const bodies = new Set<string>();
-    const heads = new Map<string, number>();
-    const steps = new Set<string>();
-
-    moves.forEach(({ from, to }, { snake }) => {
-      heads.set(to, (heads.get(to) ?? 0) + 1);
-      steps.add(`${from}>${to}`);
-      snake.tail.forEach((segment) => bodies.add(cellKey(segment.x, segment.y)));
-    });
-
-    const crashed = new Set<Player>();
-    moves.forEach(({ from, to }, player) => {
-      const swapped = from !== to && steps.has(`${to}>${from}`);
-      if (bodies.has(to) || (heads.get(to) ?? 0) > 1 || swapped) crashed.add(player);
-    });
-    return crashed;
-  }
-
-  /**
-   * Kills everyone in `dying` before deciding whether the round is over, so
-   * snakes that die together all miss out on the win — ending the round on the
-   * first of them would crown one that is about to die too.
-   */
-  private handleDeaths(dying: Set<Player>) {
-    if (dying.size === 0) return;
-
-    dying.forEach((player) => (player.snake.isDead = true));
-    this.state.aliveCount -= dying.size;
-
-    if (this.state.aliveCount <= 1) this.endRound();
+    if (tick(this.state, this.rng, newCoordinates).roundOver) this.endRound();
   }
 
   /** Announces the winner (if a snake is left) and the full ranking, and ends the round. */

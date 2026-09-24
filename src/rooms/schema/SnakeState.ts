@@ -17,7 +17,7 @@ export class Coordinates extends Schema {
     }
 }
 
-const newCoordinates = (x: number, y: number) => new Coordinates(x, y);
+export const newCoordinates = (x: number, y: number) => new Coordinates(x, y);
 
 /**
  * The tail is a ring buffer laid out by the engine's tail functions (see
