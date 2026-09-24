@@ -173,17 +173,14 @@ describe("food respawn", () => {
     const { room } = await frozenRoom();
     arrangeEat(room.state);
 
-    const realRandom = Math.random;
+    // The rules draw from the room's own seeded generator, never Math.random.
+    const seeded = room["rng"];
     let draws = 0;
-    Math.random = () => {
+    room["rng"] = () => {
       draws++;
-      return realRandom();
+      return seeded();
     };
-    try {
-      room.update();
-    } finally {
-      Math.random = realRandom;
-    }
+    room.update();
 
     // One pellet is an x, a y and a type, plus the odd retry when a guess
     // lands on something. The batch this replaced drew twenty pellets' worth,

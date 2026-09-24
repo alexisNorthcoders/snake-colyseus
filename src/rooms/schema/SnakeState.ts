@@ -147,6 +147,8 @@ export class GameState extends Schema {
     @type("number") countdown: number = 0;
     // Length of one simulation tick in ms, fixed at room creation, so clients can pace their animation.
     @type("number") tickMs: number = 1000 / gameConfig.fps;
+    // Seed of the room's rule RNG, fixed at room creation, so the room's food can be replayed from it.
+    @type("number") seed: number = 0;
     @type("number") aliveCount: number = 0;
     @type("number") backgroundNumber: number = 0;
     @type([Player]) players = new ArraySchema<Player>();
