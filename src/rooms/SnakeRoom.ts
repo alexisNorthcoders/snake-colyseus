@@ -6,7 +6,7 @@ import { foodScore, gameConfig, spawnCells, startingPositions } from "../gameCon
 import { generateFoodCoordinates } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
 import { tailCells } from "../engine/tail";
-import { isRoundOver, tick, turn } from "../engine/tick";
+import { isRoundOver, tick, turn as turnSnake } from "../engine/tick";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
@@ -129,7 +129,7 @@ export class SnakeRoom extends Room<GameState> {
     // hasOwn, not a plain lookup: a key like "toString" would otherwise
     // find a prototype method and write undefined into the synced state.
     if (typeof key !== "string" || !Object.hasOwn(directionMap, key)) return;
-    turn(snake, key as Direction);
+    turnSnake(snake, key as Direction);
   }
 
   /**

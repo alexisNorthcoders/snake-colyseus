@@ -1,6 +1,6 @@
 import { Direction, DirectionVector, directionMap } from "../contants";
 import { Cell, cellKey, foodScore, gameConfig } from "../gameConfig";
-import { pickFreeCell, randomFoodType } from "./food";
+import { FoodPlacement, pickFreeCell, randomFoodType } from "./food";
 import { Rng } from "./rng";
 import { NewCell, TailRing, advanceTail, growTail } from "./tail";
 
@@ -24,10 +24,8 @@ export interface PlayerShape<C extends Cell> {
     snake: SnakeShape<C>;
 }
 
-export interface FoodShape extends Cell {
-    index: number;
-    type: string;
-}
+/** A pellet on the board: the schema `Food` in the room, a placement in a headless game. */
+export type FoodShape = FoodPlacement;
 
 /** The part of the game state a tick reads and changes. */
 export interface GameShape<C extends Cell> {
