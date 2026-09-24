@@ -95,6 +95,8 @@ describe("death causes in the rankings", () => {
     assert.strictEqual(entry(0, c.id).cause, undefined);
     assert.strictEqual(entry(0, c.id).by, undefined);
     assert.strictEqual(entry(0, a.id).cause, "body");
+    assert.strictEqual(entry(0, b.id).cause, undefined);
+    assert.strictEqual(entry(0, b.id).by, undefined);
   });
 
   it("forgets the last round's causes when the next round starts", async () => {

@@ -308,6 +308,8 @@ export class SnakeRoom extends Room<GameState> {
     const index = this.state.players.findIndex(p => p.id === client.sessionId);
     if (index !== -1) {
       const [player] = this.state.players.splice(index, 1);
+      // Leaving isn't a death cause, so a leaver keeps none from earlier in the round.
+      this.roundDeaths.delete(player.id);
       if (!this.inRound) return;
 
       this.roundLeavers.push({ id: player.id, name: player.name, score: player.snake.score });
