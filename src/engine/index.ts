@@ -17,6 +17,8 @@ export const RULES_VERSION = 1;
 // The values the rules are played by, and the board's cells.
 export type { Cell } from "./config";
 export { cellKey, foodScore, rulesConfig, startingPositions } from "./config";
+export type { GameMode } from "./mode";
+export { modeOf } from "./mode";
 export type { Direction, DirectionVector } from "./direction";
 export { directionMap } from "./direction";
 

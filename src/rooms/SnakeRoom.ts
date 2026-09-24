@@ -11,6 +11,7 @@ import {
   directionMap,
   foodScore,
   layFood,
+  modeOf,
   mulberry32,
   removeFromPlay,
   rulesConfig,
@@ -185,6 +186,7 @@ export class SnakeRoom extends Room<GameState> {
 
   onCreate(options: any) {
     this.setState(new GameState());
+    this.state.mode = modeOf(options?.mode);
     const speed = options?.speed;
     const ticksPerSecond = typeof speed === "number" && Number.isFinite(speed)
       ? Math.min(gameConfig.maxSpeed, Math.max(gameConfig.minSpeed, Math.round(speed)))

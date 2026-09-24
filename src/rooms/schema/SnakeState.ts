@@ -1,5 +1,5 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
-import { Cell, DirectionVector, FoodPlacement, advanceTail, growTail, setTail } from "../../engine";
+import { Cell, DirectionVector, FoodPlacement, GameMode, advanceTail, growTail, setTail } from "../../engine";
 import { gameConfig } from "../../gameConfig";
 
 // Re-exported so readers of the schema keep one import for the tail's body order.
@@ -104,6 +104,8 @@ export type Phase = "lobby" | "countdown" | "playing" | "ended";
 export class GameState extends Schema {
     @type("string") phase: Phase = "lobby";
     @type("number") countdown: number = 0;
+    // The kind of round the room plays, fixed at room creation.
+    @type("string") mode: GameMode = "timed";
     // Length of one simulation tick in ms, fixed at room creation, so clients can pace their animation.
     @type("number") tickMs: number = 1000 / gameConfig.fps;
     // Seed of the room's rule RNG, fixed at room creation, so the room's food can be replayed from it.
