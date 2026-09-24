@@ -329,7 +329,8 @@ export class SnakeRoom extends Room<GameState> {
 
       // A leaver can be the one that leaves a single snake standing. Taken
       // out of the synced list first, so marking the snake dead never syncs.
-      if (removeFromPlay(this.state, player.snake).roundOver) this.endRound();
+      const result = removeFromPlay(this.state, player.snake);
+      if (result.roundOver) this.endRound(result);
     }
   }
 
@@ -339,23 +340,23 @@ export class SnakeRoom extends Room<GameState> {
 
     this.steerBots();
 
-    const { events, roundOver } = tick(this.state, this.rng, newCoordinates);
+    const report = tick(this.state, this.rng, newCoordinates);
+    const { events } = report;
     events.forEach((event) => {
       if (event.kind !== "died") return;
       const { kind, player, ...death } = event;
       this.roundDeaths.set(player, death);
     });
-    if (roundOver) this.endRound();
+    if (report.roundOver) this.endRound(report);
   }
 
   /**
-   * Announces the winner (if there is one: see `winnerOf`) and the full
-   * ranking, and ends the round. Each snake that died says how, and into
-   * whom; the snakes alive at the end and anyone who left mid-round have no
-   * cause.
+   * Announces the winner the engine named in its report (if there is one:
+   * see `winnerOf`) and the full ranking, and ends the round. Each snake that
+   * died says how, and into whom; the snakes alive at the end and anyone who
+   * left mid-round have no cause.
    */
-  private endRound() {
-    const winnerId = winnerOf(this.state);
+  private endRound({ winnerId }: { winnerId?: string } = { winnerId: winnerOf(this.state) }) {
     const rankings = [
       ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score, ...this.roundDeaths.get(p.id) })),
       ...this.roundLeavers

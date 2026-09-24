@@ -1,6 +1,6 @@
 import { Cell, spawnCells, startingPositions } from "./config";
 import { NewCell, setTail } from "./tail";
-import { GameShape, SnakeShape, isRoundOver } from "./tick";
+import { GameShape, SnakeShape, TickReport, isRoundOver, roundResult } from "./tick";
 
 /**
  * Starts a round: hands every snake a spawn cell, read from the table at
@@ -53,15 +53,16 @@ export const beginPlay = (
 
 /**
  * Takes a leaving player's snake out of play mid-round, and says whether that
- * leaves the round over. A snake that was already dead isn't counted twice.
+ * leaves the round over, and to whom. A snake that was already dead isn't
+ * counted twice.
  */
 export const removeFromPlay = (
-    game: Pick<GameShape<Cell>, "aliveCount">,
+    game: Pick<GameShape<Cell>, "aliveCount" | "players">,
     snake: Pick<SnakeShape<Cell>, "isDead">
-): { roundOver: boolean } => {
+): Omit<TickReport, "events"> => {
     if (!snake.isDead) {
         snake.isDead = true;
         game.aliveCount--;
     }
-    return { roundOver: isRoundOver(game) };
+    return roundResult(game, isRoundOver(game));
 };

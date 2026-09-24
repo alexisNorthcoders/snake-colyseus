@@ -73,6 +73,37 @@ describe("timed room", () => {
     assert.strictEqual(gameOver.rankings.length, 2);
   });
 
+  it("ends early on a death with the survivor as the winner, however much the dead snake scored", async () => {
+    gameConfig.roundSeconds = 180;
+    const room: any = await colyseus.createRoom<GameState>("snake", { speed: 8 });
+    const c1 = await colyseus.connectTo(room, joinOptions("a", "#ff0000"));
+    await colyseus.connectTo(room, joinOptions("b", "#00ff00"));
+    room.setSimulationInterval(null);
+    const state = room.state as GameState;
+    const gameOver = new Promise<any>((resolve) => c1.onMessage(SnakeRoom.messageTypes.GAME_OVER, resolve));
+
+    c1.send(SnakeRoom.messageTypes.START_GAME);
+    await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
+
+    // The top scorer runs into the other snake's body on the next tick.
+    const [doomed, survivor] = state.players;
+    const place = (s: typeof doomed.snake, x: number, y: number, tail: { x: number; y: number }[] = []) => {
+      s.x = x; s.y = y; s.direction.x = 1; s.direction.y = 0;
+      s.movedDirection = { x: 1, y: 0 };
+      s.setTail(tail);
+    };
+    place(doomed.snake, 5, 5);
+    place(survivor.snake, 20, 20, [{ x: 6, y: 5 }, { x: 7, y: 5 }]);
+    doomed.snake.score = 500;
+    room.update();
+
+    assert.strictEqual(state.phase, "ended");
+    assert.ok(state.ticksLeft > 0, "the round ran out of time instead");
+    const message = await gameOver;
+    assert.strictEqual(message.winnerId, survivor.id);
+    assert.strictEqual(message.rankings[0].id, doomed.id);
+  });
+
   it("starts the clock at the round's seconds at the room's speed", async () => {
     gameConfig.roundSeconds = 180;
     const room: any = await colyseus.createRoom<GameState>("snake", { speed: 10 });

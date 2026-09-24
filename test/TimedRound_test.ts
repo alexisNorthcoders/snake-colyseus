@@ -9,8 +9,7 @@ import {
   mulberry32,
   newPlainCell,
   setTail,
-  tick,
-  winnerOf
+  tick
 } from "../src/engine";
 
 type PlainPlayer = PlayerShape<Cell>;
@@ -65,7 +64,7 @@ describe("timed round", () => {
     assert.strictEqual(game.ticksLeft, 2);
     assert.strictEqual(run(game).roundOver, false);
     assert.strictEqual(game.ticksLeft, 1);
-    assert.strictEqual(run(game).roundOver, true);
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true });
     assert.strictEqual(game.ticksLeft, 0);
   });
 
@@ -82,9 +81,15 @@ describe("timed round", () => {
     ]);
     game.players[0].snake.score = 50;
 
-    assert.strictEqual(run(game).roundOver, true);
+    assert.deepStrictEqual(run(game), {
+      events: [
+        { kind: "died", player: "a", cause: "head-on", by: "b" },
+        { kind: "died", player: "b", cause: "head-on", by: "a" }
+      ],
+      roundOver: true,
+      winnerId: "c"
+    });
     assert.strictEqual(game.ticksLeft, 99);
-    assert.strictEqual(winnerOf(game), "c");
   });
 
   it("gives the win on time to the highest-scoring live snake, even when a dead snake scored more", () => {
@@ -96,20 +101,19 @@ describe("timed round", () => {
     players[2].snake.isDead = true;
     game.aliveCount = 2;
 
-    assert.strictEqual(run(game).roundOver, true);
-    assert.strictEqual(winnerOf(game), "b");
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true, winnerId: "b" });
   });
 
   it("breaks a score tie on time in favour of the longer snake", () => {
     const game = begun("timed", 1, apart({ score: 20, size: 3 }, { score: 20, size: 2 }));
-    run(game);
-    assert.strictEqual(winnerOf(game), "a");
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true, winnerId: "a" });
   });
 
   it("calls a tie on score and length a draw, with no winner", () => {
     const game = begun("timed", 1, apart({ score: 20, size: 2 }, { score: 20, size: 2 }));
-    run(game);
-    assert.strictEqual(winnerOf(game), undefined);
+    const report = run(game);
+    assert.strictEqual(report.roundOver, true);
+    assert.ok(!("winnerId" in report), `winnerId named: ${JSON.stringify(report)}`);
   });
 
   it("has no winner when every snake is dead", () => {
@@ -117,8 +121,9 @@ describe("timed round", () => {
       plainPlayer("a", { x: 4, y: 5 }, right, { score: 40 }),
       plainPlayer("b", { x: 6, y: 5 }, left)
     ]);
-    assert.strictEqual(run(game).roundOver, true);
-    assert.strictEqual(winnerOf(game), undefined);
+    const report = run(game);
+    assert.strictEqual(report.roundOver, true);
+    assert.ok(!("winnerId" in report), `winnerId named: ${JSON.stringify(report)}`);
   });
 });
 

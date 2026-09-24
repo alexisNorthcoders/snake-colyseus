@@ -64,12 +64,23 @@ export type TickEvent = AteEvent | DiedEvent;
 /**
  * What a tick did, as events in the order it did them (every pellet eaten,
  * then every death), and whether the round is now over: at most one snake
- * left alive, or a timed round out of ticks.
+ * left alive, or a timed round out of ticks. A round that is over names its
+ * winner (see `winnerOf`), left out when there's none.
  */
 export interface TickReport {
     events: TickEvent[];
     roundOver: boolean;
+    winnerId?: string;
 }
+
+/** Whether the round is over, with its winner if it is and there's one. */
+export const roundResult = (
+    game: Pick<GameShape<Cell>, "players">,
+    roundOver: boolean
+): Omit<TickReport, "events"> => {
+    const winnerId = roundOver ? winnerOf(game) : undefined;
+    return { roundOver, ...(winnerId !== undefined && { winnerId }) };
+};
 
 /**
  * The one place that decides the snakes have ended a round: one snake or none
@@ -146,7 +157,7 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
         timeUp = game.ticksLeft <= 0;
     }
 
-    return { events: [...meals, ...deaths.events], roundOver: deaths.roundOver || timeUp };
+    return { events: [...meals, ...deaths.events], ...roundResult(game, deaths.roundOver || timeUp) };
 };
 
 const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
