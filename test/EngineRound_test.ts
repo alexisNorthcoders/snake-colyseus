@@ -5,7 +5,7 @@ import { Direction } from "../src/contants";
 import { RULES_VERSION } from "../src/engine";
 import { FoodPlacement, layFood } from "../src/engine/food";
 import { mulberry32 } from "../src/engine/rng";
-import { beginPlay, dealRound, removeSnake } from "../src/engine/round";
+import { beginPlay, dealRound, removeFromPlay } from "../src/engine/round";
 import { newPlainCell, setTail, tailCells } from "../src/engine/tail";
 import { GameShape, PlayerShape, tick, turn } from "../src/engine/tick";
 
@@ -57,15 +57,16 @@ describe("engine round start", () => {
   it("rolls the spawn offset on so the same seat doesn't start in the same corner", () => {
     const game = plainGame(["a", "b", "c"]);
 
-    let offset = 0;
-    const firstSeat: Cell[] = [];
-    for (let round = 0; round < startingPositions.length; round++) {
-      offset = dealRound(game, offset, newPlainCell);
-      firstSeat.push({ x: game.players[0].snake.x, y: game.players[0].snake.y });
-    }
+    const next = dealRound(game, 0, newPlainCell);
+    const firstSeat = { x: game.players[0].snake.x, y: game.players[0].snake.y };
 
-    assert.strictEqual(offset, (startingPositions.length * 3) % startingPositions.length);
-    assert.notDeepStrictEqual(firstSeat[0], firstSeat[1]);
+    assert.strictEqual(next, 3 % startingPositions.length);
+    dealRound(game, next, newPlainCell);
+    assert.deepStrictEqual(
+      game.players.map(({ snake }) => ({ x: snake.x, y: snake.y })),
+      spawnCells(3, next)
+    );
+    assert.notDeepStrictEqual({ x: game.players[0].snake.x, y: game.players[0].snake.y }, firstSeat);
   });
 
   it("counts every snake in when play begins", () => {
@@ -98,7 +99,7 @@ describe("engine leaver", () => {
     dealRound(game, 0, newPlainCell);
     beginPlay(game);
 
-    const report = removeSnake(game, game.players[0].snake);
+    const report = removeFromPlay(game, game.players[0].snake);
 
     assert.strictEqual(game.players[0].snake.isDead, true);
     assert.strictEqual(game.aliveCount, 2);
@@ -110,16 +111,16 @@ describe("engine leaver", () => {
     dealRound(game, 0, newPlainCell);
     beginPlay(game);
 
-    assert.strictEqual(removeSnake(game, game.players[0].snake).roundOver, true);
+    assert.strictEqual(removeFromPlay(game, game.players[0].snake).roundOver, true);
   });
 
   it("doesn't count a snake that was already dead twice", () => {
     const game = plainGame(["a", "b", "c"]);
     dealRound(game, 0, newPlainCell);
     beginPlay(game);
-    removeSnake(game, game.players[0].snake);
+    removeFromPlay(game, game.players[0].snake);
 
-    const report = removeSnake(game, game.players[0].snake);
+    const report = removeFromPlay(game, game.players[0].snake);
 
     assert.strictEqual(game.aliveCount, 2);
     assert.strictEqual(report.roundOver, false);

@@ -1,11 +1,11 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Phase, Player, Snake, Food, PlayerColors, newCoordinates } from "./schema/SnakeState";
+import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { BotView, decide, rookieBotProfile } from "../bot";
 import { foodScore, gameConfig } from "../gameConfig";
 import { layFood } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
-import { beginPlay, dealRound, removeSnake } from "../engine/round";
+import { beginPlay, dealRound, removeFromPlay } from "../engine/round";
 import { tailCells } from "../engine/tail";
 import { tick, turn as turnSnake } from "../engine/tick";
 
@@ -192,7 +192,7 @@ export class SnakeRoom extends Room<GameState> {
       this.seatBot();
     }
 
-    layFood(this.state, this.rng, (placement) => Object.assign(new Food(), placement));
+    layFood(this.state, this.rng, newFood);
 
     // Patches are flushed by hand at the end of each simulation tick (below),
     // so turn off Colyseus's independent 20 Hz patch timer. Left on, a move
@@ -309,7 +309,7 @@ export class SnakeRoom extends Room<GameState> {
 
       // A leaver can be the one that leaves a single snake standing. Taken
       // out of the synced list first, so marking the snake dead never syncs.
-      if (removeSnake(this.state, player.snake).roundOver) this.endRound();
+      if (removeFromPlay(this.state, player.snake).roundOver) this.endRound();
     }
   }
 

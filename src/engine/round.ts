@@ -48,7 +48,7 @@ export const beginPlay = (game: Pick<GameShape<Cell>, "players" | "aliveCount">)
  * Takes a leaving player's snake out of play mid-round, and says whether that
  * leaves the round over. A snake that was already dead isn't counted twice.
  */
-export const removeSnake = (
+export const removeFromPlay = (
     game: Pick<GameShape<Cell>, "aliveCount">,
     snake: Pick<SnakeShape<Cell>, "isDead">
 ): { roundOver: boolean } => {
