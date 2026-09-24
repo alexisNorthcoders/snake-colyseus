@@ -1,7 +1,8 @@
 import assert from "assert";
 
-import { Cell, foodScore, gameConfig } from "../src/gameConfig";
-import { Direction } from "../src/contants";
+import { Cell, foodScore } from "../src/engine/config";
+import { gameConfig } from "../src/gameConfig";
+import { Direction } from "../src/engine/direction";
 import { mulberry32 } from "../src/engine/rng";
 import { newPlainCell, setTail, tailCells } from "../src/engine/tail";
 import { GameShape, PlayerShape, TickReport, tick, turn } from "../src/engine/tick";

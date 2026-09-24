@@ -1,7 +1,7 @@
 import assert from "assert";
 
-import { Cell, spawnCells, startingPositions } from "../src/gameConfig";
-import { Direction } from "../src/contants";
+import { Cell, spawnCells, startingPositions } from "../src/engine/config";
+import { Direction } from "../src/engine/direction";
 import { RULES_VERSION } from "../src/engine";
 import { FoodPlacement, layFood } from "../src/engine/food";
 import { mulberry32 } from "../src/engine/rng";

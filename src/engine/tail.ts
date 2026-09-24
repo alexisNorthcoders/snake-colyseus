@@ -1,4 +1,4 @@
-import { Cell } from "../gameConfig";
+import { Cell } from "./config";
 
 /**
  * The array a tail lives in: a plain `Cell[]` in a headless game, the schema's

@@ -1,4 +1,4 @@
-import { Cell, spawnCells, startingPositions } from "../gameConfig";
+import { Cell, spawnCells, startingPositions } from "./config";
 import { NewCell, setTail } from "./tail";
 import { GameShape, SnakeShape, isRoundOver } from "./tick";
 

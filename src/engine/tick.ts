@@ -1,5 +1,5 @@
-import { Direction, DirectionVector, directionMap } from "../contants";
-import { Cell, cellKey, foodScore, gameConfig } from "../gameConfig";
+import { Cell, cellKey, foodScore, rulesConfig } from "./config";
+import { Direction, DirectionVector, directionMap } from "./direction";
 import { FoodPlacement, pickFreeCell, randomFoodType } from "./food";
 import { Rng } from "./rng";
 import { NewCell, TailRing, advanceTail, growTail } from "./tail";
@@ -122,16 +122,16 @@ const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
     snake.y += snake.direction.y;
     snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
 
-    if (snake.x >= gameConfig.scaleFactor) {
+    if (snake.x >= rulesConfig.scaleFactor) {
         snake.x = 0;
     } else if (snake.x < 0) {
-        snake.x = gameConfig.scaleFactor - 1;
+        snake.x = rulesConfig.scaleFactor - 1;
     }
 
-    if (snake.y >= gameConfig.scaleFactor) {
+    if (snake.y >= rulesConfig.scaleFactor) {
         snake.y = 0;
     } else if (snake.y < 0) {
-        snake.y = gameConfig.scaleFactor - 1;
+        snake.y = rulesConfig.scaleFactor - 1;
     }
 
     advanceTail(snake, { x: prevX, y: prevY });

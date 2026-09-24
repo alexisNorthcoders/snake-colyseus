@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { joinOptions } from "./helpers";
 
-import { cellKey } from "../src/gameConfig";
+import { cellKey } from "../src/engine/config";
 import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../src/engine/food";
 import { mulberry32, Rng } from "../src/engine/rng";
 

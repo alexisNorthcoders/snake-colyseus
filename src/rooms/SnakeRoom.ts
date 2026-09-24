@@ -1,8 +1,9 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
-import { Direction, directionMap } from "../contants";
+import { Direction, directionMap } from "../engine/direction";
 import { BotView, decide, rookieBotProfile } from "../bot";
-import { foodScore, gameConfig } from "../gameConfig";
+import { gameConfig } from "../gameConfig";
+import { foodScore, rulesConfig } from "../engine/config";
 import { layFood } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
 import { beginPlay, dealRound, removeFromPlay } from "../engine/round";
@@ -147,7 +148,7 @@ export class SnakeRoom extends Room<GameState> {
     // The oldest snapshot stands in early in a round, before n ticks exist.
     const past = this.snapshots[0];
     return {
-      grid: { width: gameConfig.scaleFactor, height: gameConfig.scaleFactor },
+      grid: { width: rulesConfig.scaleFactor, height: rulesConfig.scaleFactor },
       self: { ...snake(me), movedDirection: { ...me.snake.movedDirection } },
       others: this.state.players
         .filter((p) => p !== me)

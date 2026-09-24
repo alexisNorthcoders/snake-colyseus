@@ -1,6 +1,7 @@
 import assert from "assert";
 
-import { cellKey, gameConfig } from "../src/gameConfig";
+import { cellKey } from "../src/engine/config";
+import { gameConfig } from "../src/gameConfig";
 import { generateFoodCoordinates, pickFreeCell } from "../src/engine/food";
 
 const SIZE = gameConfig.scaleFactor;
