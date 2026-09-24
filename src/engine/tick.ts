@@ -34,12 +34,33 @@ export interface GameShape<C extends Cell> {
     aliveCount: number;
 }
 
+/** How a snake died. `body` is another snake's body; running into your own is `self`. */
+export type DeathCause = "self" | "body" | "head-on";
+
+/** A survivor ate `food`, as it was before it respawned, gaining `score` points. */
+export interface AteEvent {
+    kind: "ate";
+    player: string;
+    food: Omit<FoodShape, "index">;
+    score: number;
+}
+
+/** A snake died of `cause`, running into `by` unless it was its own doing. */
+export interface DiedEvent {
+    kind: "died";
+    player: string;
+    cause: DeathCause;
+    by?: string;
+}
+
+export type TickEvent = AteEvent | DiedEvent;
+
 /**
- * What a tick did: which players died, and whether the round is now over.
- * The next slice turns this into events with death causes.
+ * What a tick did, as events in the order it did them (every pellet eaten,
+ * then every death), and whether the round is now over.
  */
 export interface TickReport {
-    died: string[];
+    events: TickEvent[];
     roundOver: boolean;
 }
 
@@ -77,16 +98,20 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
         return [player, { from, to: cellKey(player.snake.x, player.snake.y) }];
     }));
 
-    const dying = findCrashed(moves);
+    const crashes = findCrashed(moves);
 
     // A snake that died this tick doesn't eat on its way out: the points
     // would still count towards the final ranking, and the pellet it landed
     // on stays on the board.
+    const meals: AteEvent[] = [];
     live.forEach((player) => {
-        if (!dying.has(player)) eat(game, player.snake, rng, newCell);
+        if (crashes.has(player)) return;
+        const ate = eat(game, player, rng, newCell);
+        if (ate) meals.push(ate);
     });
 
-    return killAll(game, dying);
+    const deaths = killAll(game, crashes);
+    return { events: [...meals, ...deaths.events], roundOver: deaths.roundOver };
 };
 
 const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
@@ -112,18 +137,29 @@ const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
     advanceTail(snake, { x: prevX, y: prevY });
 };
 
-const eat = <C extends Cell>(game: GameShape<C>, snake: SnakeShape<C>, rng: Rng, newCell: NewCell<C>) => {
+const eat = <C extends Cell>(
+    game: GameShape<C>,
+    { id, snake }: PlayerShape<C>,
+    rng: Rng,
+    newCell: NewCell<C>
+): AteEvent | undefined => {
     const food = [...game.foodCoordinates].find(food =>
         food.x === snake.x && food.y === snake.y
     );
 
-    if (food) {
-        snake.size++;
-        snake.score += foodScore[food.type];
-        growTail(snake, newCell);
+    if (!food) return;
 
-        respawnFood(game, food, rng);
-    }
+    // Copied before the pellet respawns in place.
+    const eaten = { type: food.type, x: food.x, y: food.y };
+    const score = foodScore[food.type];
+
+    snake.size++;
+    snake.score += score;
+    growTail(snake, newCell);
+
+    respawnFood(game, food, rng);
+
+    return { kind: "ate", player: id, food: eaten, score };
 };
 
 /**
@@ -174,49 +210,80 @@ const occupiedCells = (game: GameShape<Cell>, ignore?: FoodShape) => {
     return occupied;
 };
 
+/** How a snake crashed, and into whom unless it was its own body. */
+interface Crash<P> {
+    cause: DeathCause;
+    by?: P;
+}
+
 /**
- * The live snakes, given with the cell each head moved from and to this
- * tick, that crashed: landed on a body segment (their own or anyone else's),
- * on another head, or swapped cells with another head — two tailless snakes
- * side by side would otherwise cross without ever sharing a cell. Every
- * occupied cell is counted once up front, so the cost follows the total
- * number of segments rather than players squared.
+ * The live snakes, given in player order with the cell each head moved from
+ * and to this tick, that crashed, and how: `head-on` when the head landed on
+ * another head or swapped cells with one — two tailless snakes side by side
+ * would otherwise cross without ever sharing a cell — else `body` when it
+ * landed on another snake's body, else `self` on its own. Where more than one
+ * other snake qualifies, `by` is the first in player order. Every occupied
+ * cell is counted once up front, so the cost follows the total number of
+ * segments rather than players squared.
  *
  * Dead snakes aren't counted: their bodies stay on the board but can be
- * passed through.
+ * passed through, and so never show up as `by`.
  */
 const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; to: string }>) => {
-    const bodies = new Set<string>();
-    const heads = new Map<string, number>();
-    const steps = new Set<string>();
+    // Each cell's snakes, in player order since `moves` is walked in it. A
+    // head-on merges two of these lists, so `firstOther` re-sorts.
+    const bodies = new Map<string, P[]>();
+    const heads = new Map<string, P[]>();
+    const steps = new Map<string, P[]>();
+    const add = (cells: Map<string, P[]>, key: string, player: P) => {
+        const here = cells.get(key);
+        if (!here) cells.set(key, [player]);
+        else if (here[here.length - 1] !== player) here.push(player);
+    };
 
-    moves.forEach(({ from, to }, { snake }) => {
-        heads.set(to, (heads.get(to) ?? 0) + 1);
-        steps.add(`${from}>${to}`);
-        for (let i = 0; i < snake.tail.length; i++) {
-            bodies.add(cellKey(snake.tail[i].x, snake.tail[i].y));
-        }
+    moves.forEach(({ from, to }, player) => {
+        add(heads, to, player);
+        add(steps, `${from}>${to}`, player);
+        const { tail } = player.snake;
+        for (let i = 0; i < tail.length; i++) add(bodies, cellKey(tail[i].x, tail[i].y), player);
     });
 
-    const crashed = new Set<P>();
+    const order = new Map([...moves.keys()].map((player, i) => [player, i]));
+    const firstOther = (player: P, ...groups: (P[] | undefined)[]) => groups
+        .flatMap((group) => group ?? [])
+        .filter((other) => other !== player)
+        .sort((a, b) => order.get(a)! - order.get(b)!)[0];
+
+    const crashed = new Map<P, Crash<P>>();
     moves.forEach(({ from, to }, player) => {
-        const swapped = from !== to && steps.has(`${to}>${from}`);
-        if (bodies.has(to) || (heads.get(to) ?? 0) > 1 || swapped) crashed.add(player);
+        const headOn = firstOther(player, heads.get(to), steps.get(`${to}>${from}`));
+        const body = firstOther(player, bodies.get(to));
+
+        if (headOn) crashed.set(player, { cause: "head-on", by: headOn });
+        else if (body) crashed.set(player, { cause: "body", by: body });
+        else if (bodies.get(to)?.includes(player)) crashed.set(player, { cause: "self" });
     });
     return crashed;
 };
 
 /**
- * Kills everyone in `dying` before deciding whether the round is over, so
+ * Kills everyone in `crashes` before deciding whether the round is over, so
  * snakes that die together all miss out on the win — ending the round on the
  * first of them would crown one that is about to die too. A tick where nobody
  * dies never ends the round.
  */
-const killAll = (game: GameShape<Cell>, dying: Set<PlayerShape<Cell>>): TickReport => {
-    if (dying.size === 0) return { died: [], roundOver: false };
+const killAll = <P extends PlayerShape<Cell>>(
+    game: GameShape<Cell>,
+    crashes: Map<P, Crash<P>>
+): { events: DiedEvent[]; roundOver: boolean } => {
+    if (crashes.size === 0) return { events: [], roundOver: false };
 
-    dying.forEach((player) => (player.snake.isDead = true));
-    game.aliveCount -= dying.size;
+    const events: DiedEvent[] = [];
+    crashes.forEach(({ cause, by }, player) => {
+        player.snake.isDead = true;
+        events.push({ kind: "died", player: player.id, cause, ...(by && { by: by.id }) });
+    });
+    game.aliveCount -= crashes.size;
 
-    return { died: [...dying].map((player) => player.id), roundOver: isRoundOver(game) };
+    return { events, roundOver: isRoundOver(game) };
 };
