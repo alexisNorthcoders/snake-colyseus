@@ -1,4 +1,4 @@
-import { Cell, cellKey, foodScore, gameConfig } from "../gameConfig";
+import { Cell, cellKey, foodScore, rulesConfig } from "./config";
 import { Rng } from "./rng";
 
 export interface FoodPlacement extends Cell {
@@ -29,7 +29,7 @@ export const pickFreeCell = (
     isOccupied: (x: number, y: number) => boolean,
     rng: Rng
 ): Cell | null => {
-    const size = gameConfig.scaleFactor;
+    const size = rulesConfig.scaleFactor;
 
     for (let probe = 0; probe < MAX_PROBES; probe++) {
         const x = Math.floor(rng() * size);
@@ -60,7 +60,7 @@ export const generateFoodCoordinates = (rng: Rng): FoodPlacement[] => {
     const placements: FoodPlacement[] = [];
     const placed = new Set<string>();
 
-    for (let index = 0; index < gameConfig.foodStorage; index++) {
+    for (let index = 0; index < rulesConfig.foodStorage; index++) {
         const cell = pickFreeCell((x, y) => placed.has(cellKey(x, y)), rng);
         if (!cell) break;
 

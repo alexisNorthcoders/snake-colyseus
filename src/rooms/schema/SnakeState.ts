@@ -1,6 +1,7 @@
 import { Schema, ArraySchema, type } from "@colyseus/schema";
-import { DirectionVector } from "../../contants";
-import { Cell, gameConfig } from "../../gameConfig";
+import { DirectionVector } from "../../engine/direction";
+import { gameConfig } from "../../gameConfig";
+import { Cell } from "../../engine/config";
 import { FoodPlacement } from "../../engine/food";
 import { advanceTail, growTail, setTail } from "../../engine/tail";
 
