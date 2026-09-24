@@ -7,7 +7,7 @@ import { layFood } from "../engine/food";
 import { mulberry32, Rng } from "../engine/rng";
 import { beginPlay, dealRound, removeFromPlay } from "../engine/round";
 import { tailCells } from "../engine/tail";
-import { tick, turn as turnSnake } from "../engine/tick";
+import { DiedEvent, tick, turn as turnSnake } from "../engine/tick";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
@@ -44,6 +44,10 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only: players who left during the current round, kept so their
   // score still appears in the final rankings. Cleared at each round start.
   private roundLeavers: { id: string; name: string; score: number }[] = [];
+
+  // Server-only: how each player died this round, by id, for the final
+  // rankings. Cleared at each round start.
+  private roundDeaths = new Map<string, Pick<DiedEvent, "cause" | "by">>();
 
   // Server-only: the running countdown's timer, cleared when it reaches 0.
   private countdownTimer?: { clear(): void };
@@ -88,6 +92,7 @@ export class SnakeRoom extends Room<GameState> {
     this.lock();
 
     this.roundLeavers = [];
+    this.roundDeaths.clear();
 
     this.spawnOffset = dealRound(this.state, this.spawnOffset, newCoordinates);
 
@@ -303,6 +308,8 @@ export class SnakeRoom extends Room<GameState> {
     const index = this.state.players.findIndex(p => p.id === client.sessionId);
     if (index !== -1) {
       const [player] = this.state.players.splice(index, 1);
+      // Leaving isn't a death cause, so a leaver keeps none from earlier in the round.
+      this.roundDeaths.delete(player.id);
       if (!this.inRound) return;
 
       this.roundLeavers.push({ id: player.id, name: player.name, score: player.snake.score });
@@ -319,14 +326,24 @@ export class SnakeRoom extends Room<GameState> {
 
     this.steerBots();
 
-    if (tick(this.state, this.rng, newCoordinates).roundOver) this.endRound();
+    const { events, roundOver } = tick(this.state, this.rng, newCoordinates);
+    events.forEach((event) => {
+      if (event.kind !== "died") return;
+      const { kind, player, ...death } = event;
+      this.roundDeaths.set(player, death);
+    });
+    if (roundOver) this.endRound();
   }
 
-  /** Announces the winner (if a snake is left) and the full ranking, and ends the round. */
+  /**
+   * Announces the winner (if a snake is left) and the full ranking, and ends
+   * the round. Each snake that died says how, and into whom; the winner and
+   * anyone who left mid-round have no cause.
+   */
   private endRound() {
     const winner = this.state.players.find(p => !p.snake.isDead);
     const rankings = [
-      ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score })),
+      ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score, ...this.roundDeaths.get(p.id) })),
       ...this.roundLeavers
     ].sort((a, b) => b.score - a.score);
     this.roundLeavers = [];
