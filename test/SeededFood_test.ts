@@ -4,9 +4,8 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { joinOptions } from "./helpers";
 
-import { cellKey } from "../src/engine/config";
+import { Rng, cellKey, mulberry32 } from "../src/engine";
 import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../src/engine/food";
-import { mulberry32, Rng } from "../src/engine/rng";
 
 describe("mulberry32", () => {
   it("draws the same sequence from the same seed, in [0, 1)", () => {

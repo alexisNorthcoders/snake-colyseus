@@ -1,4 +1,4 @@
-import { rulesConfig } from "./engine/config";
+import { rulesConfig } from "./engine";
 
 /**
  * The room's and the client's settings. The board size and the pellet count

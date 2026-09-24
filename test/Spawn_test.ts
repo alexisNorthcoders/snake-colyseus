@@ -2,7 +2,8 @@ import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
-import { cellKey, spawnCells, startingPositions } from "../src/engine/config";
+import { cellKey, startingPositions } from "../src/engine";
+import { spawnCells } from "../src/engine/config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { joinOptions } from "./helpers";

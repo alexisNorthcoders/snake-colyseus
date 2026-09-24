@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState, Snake, tailCells } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { Cell } from "../src/engine/config";
+import { Cell } from "../src/engine";
 import { gameConfig } from "../src/gameConfig";
 import { joinOptions, waitForState } from "./helpers";
 

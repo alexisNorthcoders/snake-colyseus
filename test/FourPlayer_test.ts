@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { cellKey } from "../src/engine/config";
+import { cellKey } from "../src/engine";
 import { joinOptions, wait, waitForState } from "./helpers";
 
 const until = async (condition: () => boolean) => {

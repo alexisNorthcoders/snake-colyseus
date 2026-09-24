@@ -40,3 +40,7 @@ export const waitForState = (client: any, predicate: () => boolean, what: string
     client.onStateChange(settle);
     settle();
   });
+
+/** Every module a file names: `import ... from`, bare `import`, `export ... from`, `require` and dynamic `import()`. */
+export const specifiers = (source: string) =>
+  [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g)].map((m) => m[1]);
