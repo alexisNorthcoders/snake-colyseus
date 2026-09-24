@@ -1,9 +1,26 @@
 {
   "private": true,
-  "name": "my-app",
+  "name": "snake-colyseus",
   "version": "1.0.0",
-  "description": "npm init template for bootstrapping an empty Colyseus project",
+  "description": "Snake on Colyseus: the game server, and its rules engine as an installable package",
   "main": "build/index.js",
+  "exports": {
+    ".": "./build/index.js",
+    "./engine": {
+      "types": "./build/engine/index.d.ts",
+      "default": "./build/engine/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "engine": [
+        "build/engine/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "build"
+  ],
   "engines": {
     "node": ">= 20.9.0"
   },
@@ -12,6 +29,7 @@
     "loadtest": "tsx loadtest/example.ts --room snake --numClients 2",
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
+    "prepare": "tsc --version >/dev/null 2>&1 || exit 0; npm run build",
     "test": "mocha -r tsx -r ./test/setup.ts test/**_test.ts --exit --timeout 15000"
   },
   "author": "",
