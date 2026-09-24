@@ -49,9 +49,8 @@ export class SnakeRoom extends Room<GameState> {
   private botReactionTicks = defaultBotReactionTicks;
 
   // Server-only: every random choice the game rules make (not cosmetics like the background)
-  // draws from `rng`, seeded once per room, so the same seed lays out the same food.
-  private seed = Math.floor(Math.random() * 2 ** 32);
-  private rng: Rng = mulberry32(this.seed);
+  // draws from `rng`, derived from `state.seed` at room creation, so the same seed lays out the same food.
+  private rng!: Rng;
 
   // Server-only: other-snake snapshots from the last few ticks, oldest first. Cleared at each round start.
   private snapshots: Map<string, BotView["others"][number]>[] = [];
@@ -202,6 +201,11 @@ export class SnakeRoom extends Room<GameState> {
       : gameConfig.fps;
     this.state.tickMs = 1000 / ticksPerSecond;
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
+    const seed = options?.seed;
+    this.state.seed = Number.isInteger(seed) && seed >= 0 && seed < 2 ** 32
+      ? seed
+      : Math.floor(Math.random() * 2 ** 32);
+    this.rng = mulberry32(this.state.seed);
 
     // A private match against a bot: locked before anyone can be matched in.
     if (options?.vsBot === true) {

@@ -1,4 +1,8 @@
 import assert from "assert";
+import { ColyseusTestServer, boot } from "@colyseus/testing";
+
+import appConfig from "../src/app.config";
+import { joinOptions } from "./helpers";
 
 import { cellKey } from "../src/gameConfig";
 import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../src/engine/food";
@@ -57,6 +61,37 @@ describe("seeded food", () => {
       for (let again = 0; again < 5; again++) {
         assert.deepStrictEqual(respawn(seed), first);
       }
+    }
+  });
+});
+
+describe("room seed", () => {
+  let colyseus: ColyseusTestServer;
+
+  before(async () => (colyseus = await boot(appConfig)));
+  after(async () => colyseus.shutdown());
+  beforeEach(async () => await colyseus.cleanup());
+
+  const createRoom = async (seed?: unknown) => {
+    const client = await colyseus.sdk.create("snake", { ...(seed === undefined ? {} : { seed }), ...joinOptions("a", "#ff0000") });
+    const state = colyseus.getRoomById(client.roomId).state as any;
+    const food = state.foodCoordinates.map((f: any) => ({ x: f.x, y: f.y, index: f.index, type: f.type }));
+    return { seed: state.seed, food };
+  };
+
+  it("keeps the seed it was created with and replays the same food from it", async () => {
+    const first = await createRoom();
+    assert.ok(Number.isInteger(first.seed) && first.seed >= 0 && first.seed < 2 ** 32, `seed ${first.seed}`);
+
+    const replay = await createRoom(first.seed);
+    assert.strictEqual(replay.seed, first.seed);
+    assert.deepStrictEqual(replay.food, first.food);
+  });
+
+  it("ignores an invalid seed", async () => {
+    for (const bad of ["1", -1, 1.5, 2 ** 32, NaN, null]) {
+      const { seed } = await createRoom(bad);
+      assert.ok(Number.isInteger(seed) && seed >= 0 && seed < 2 ** 32, `seed ${seed} from ${bad}`);
     }
   });
 });
