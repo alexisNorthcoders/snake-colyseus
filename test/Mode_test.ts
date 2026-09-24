@@ -48,29 +48,43 @@ describe("room mode", () => {
     assert.strictEqual(state.mode, "endless");
   });
 
+  const modeOfRoom = (roomId: string) => (colyseus.getRoomById(roomId).state as GameState).mode;
+
   it("never joins a timed or modeless player into an endless room", async () => {
-    const endless = await joinOrCreate("endless", "e");
     for (const mode of ["timed", undefined, "banana"]) {
+      await colyseus.cleanup();
+      // The only open room is endless.
+      const endless = await joinOrCreate("endless", "e");
       const other = await joinOrCreate(mode, `p-${mode}`);
       assert.notStrictEqual(other.roomId, endless.roomId, `mode ${mode}`);
+      assert.strictEqual(modeOfRoom(other.roomId), "timed", `mode ${mode}`);
     }
   });
 
   it("never joins an endless player into a timed or modeless room", async () => {
-    const timed = await joinOrCreate("timed", "t");
-    const modeless = await joinOrCreate(undefined, "m");
-    // A room created without a mode is a timed room, and matches like one.
-    assert.strictEqual(modeless.roomId, timed.roomId);
-    const endless = await joinOrCreate("endless", "e");
-    assert.notStrictEqual(endless.roomId, timed.roomId);
+    for (const mode of ["timed", undefined, "banana"]) {
+      await colyseus.cleanup();
+      // The only open room was created timed, without a mode, or with an invalid one.
+      const timed = await joinOrCreate(mode, `p-${mode}`);
+      const endless = await joinOrCreate("endless", "e");
+      assert.notStrictEqual(endless.roomId, timed.roomId, `mode ${mode}`);
+      assert.strictEqual(modeOfRoom(endless.roomId), "endless", `mode ${mode}`);
+    }
   });
 
   it("matches a modeless join to a timed room, and the other way round", async () => {
-    const modeless = await joinOrCreate(undefined, "m");
+    // A timed room takes a join that sends no mode.
     const timed = await joinOrCreate("timed", "t");
-    const another = await joinOrCreate(undefined, "n");
-    assert.strictEqual(timed.roomId, modeless.roomId);
-    assert.strictEqual(another.roomId, modeless.roomId);
+    const modeless = await joinOrCreate(undefined, "m");
+    assert.strictEqual(modeless.roomId, timed.roomId);
+
+    await colyseus.cleanup();
+
+    // A room created without a mode takes a timed join.
+    const created = await joinOrCreate(undefined, "n");
+    const joined = await joinOrCreate("timed", "u");
+    assert.strictEqual(joined.roomId, created.roomId);
+    assert.strictEqual(modeOfRoom(created.roomId), "timed");
   });
 
   it("matches endless joins to each other", async () => {
