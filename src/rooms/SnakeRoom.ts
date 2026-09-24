@@ -2,7 +2,9 @@ import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, Food, PlayerColors, tailCells } from "./schema/SnakeState";
 import { Direction, directionMap } from "../contants";
 import { BotView, decide, rookieBotProfile } from "../bot";
-import { cellKey, foodScore, gameConfig, generateFoodCoordinates, pickFreeCell, randomFoodType, spawnCells, startingPositions } from "../gameConfig";
+import { cellKey, foodScore, gameConfig, spawnCells, startingPositions } from "../gameConfig";
+import { generateFoodCoordinates, pickFreeCell, randomFoodType } from "../engine/food";
+import { mulberry32, Rng } from "../engine/rng";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
 // countdown's last tick moves it on to playing. "ended" is terminal: rooms are
@@ -45,6 +47,11 @@ export class SnakeRoom extends Room<GameState> {
 
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
   private botReactionTicks = defaultBotReactionTicks;
+
+  // Server-only: every random choice the game rules make (not cosmetics like the background)
+  // draws from `rng`, seeded once per room, so the same seed lays out the same food.
+  private seed = Math.floor(Math.random() * 2 ** 32);
+  private rng: Rng = mulberry32(this.seed);
 
   // Server-only: other-snake snapshots from the last few ticks, oldest first. Cleared at each round start.
   private snapshots: Map<string, BotView["others"][number]>[] = [];
@@ -206,7 +213,7 @@ export class SnakeRoom extends Room<GameState> {
       this.seatBot();
     }
 
-    generateFoodCoordinates().forEach((placement) => {
+    generateFoodCoordinates(this.rng).forEach((placement) => {
       const food = new Food();
       food.x = placement.x;
       food.y = placement.y;
@@ -419,13 +426,13 @@ export class SnakeRoom extends Room<GameState> {
    */
   private respawnFood(food: Food) {
     const occupied = this.occupiedCells(food);
-    const cell = pickFreeCell((x, y) => occupied.has(cellKey(x, y)));
+    const cell = pickFreeCell((x, y) => occupied.has(cellKey(x, y)), this.rng);
 
     if (!cell) return;
 
     food.x = cell.x;
     food.y = cell.y;
-    food.type = randomFoodType();
+    food.type = randomFoodType(this.rng);
   }
 
   /**

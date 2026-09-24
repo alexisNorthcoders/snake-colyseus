@@ -1,11 +1,7 @@
 import assert from "assert";
 
-import {
-  cellKey,
-  gameConfig,
-  generateFoodCoordinates,
-  pickFreeCell
-} from "../src/gameConfig";
+import { cellKey, gameConfig } from "../src/gameConfig";
+import { generateFoodCoordinates, pickFreeCell } from "../src/engine/food";
 
 const SIZE = gameConfig.scaleFactor;
 
@@ -49,12 +45,12 @@ describe("pickFreeCell", () => {
     // Random probing alone would keep missing a single free cell in 400, so
     // this is the case that has to fall back to looking at the board.
     for (let attempt = 0; attempt < 20; attempt++) {
-      assert.deepStrictEqual(pickFreeCell(isOccupied), hole);
+      assert.deepStrictEqual(pickFreeCell(isOccupied, Math.random), hole);
     }
   });
 
   it("reports that there is nowhere to put a pellet on a full board", () => {
-    assert.strictEqual(pickFreeCell(() => true), null);
+    assert.strictEqual(pickFreeCell(() => true, Math.random), null);
   });
 
   it("never returns an occupied cell", () => {
@@ -66,7 +62,7 @@ describe("pickFreeCell", () => {
           .map(([x, y]) => cellKey(x, y))
       );
 
-      const cell = pickFreeCell((x, y) => taken.has(cellKey(x, y)));
+      const cell = pickFreeCell((x, y) => taken.has(cellKey(x, y)), Math.random);
 
       assert.ok(cell, "board was half empty but no cell was found");
       assert.ok(
@@ -79,7 +75,7 @@ describe("pickFreeCell", () => {
 
 describe("generateFoodCoordinates", () => {
   it("stocks the board with the configured number of pellets, one per cell", () => {
-    const placements = generateFoodCoordinates();
+    const placements = generateFoodCoordinates(Math.random);
 
     assert.strictEqual(placements.length, gameConfig.foodStorage);
 
