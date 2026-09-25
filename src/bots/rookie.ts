@@ -1,12 +1,5 @@
-import { Cell, Direction, cellKey, directionMap } from "./engine";
-
-/** Everything a human player could see this tick, as plain data. */
-export interface BotView {
-  grid: { width: number; height: number };
-  self: { head: Cell; body: Cell[]; movedDirection: { x: number; y: number } };
-  others: { head: Cell; body: Cell[]; isDead: boolean }[];
-  food: { x: number; y: number; type: string; score: number }[];
-}
+import { Cell, Direction, cellKey, directionMap } from "../engine";
+import { BotView, Decider } from "./view";
 
 /** How a bot plays. */
 export interface BotProfile {
@@ -118,3 +111,6 @@ export function decide(view: BotView, profile: BotProfile): Direction {
 
   return target !== undefined && isSafe(target) ? target : fallback();
 }
+
+/** The rookie bot, as a `Decider`. */
+export const rookie: Decider = (view) => decide(view, rookieBotProfile);

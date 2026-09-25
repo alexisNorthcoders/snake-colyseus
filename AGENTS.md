@@ -12,11 +12,11 @@ Uses the five default labels: needs-triage, needs-info, ready-for-agent, ready-f
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-## Tagging the engine
+## Tagging the engine and bots
 
-Other repos install the engine from GitHub at a tag (`github:alexisNorthcoders/snake-colyseus#engine-vX.Y.Z`) and import `snake-colyseus/engine`. npm's `prepare` hook builds it on install; `build/` is never committed.
+Other repos install the package from GitHub at a tag (`github:alexisNorthcoders/snake-colyseus#engine-vX.Y.Z`) and import `snake-colyseus/engine` and `snake-colyseus/bots`. npm's `prepare` hook builds both on install; `build/` is never committed. Both share the one `engine-vX.Y.Z` tag series.
 
-Cut a new tag on `master` whenever `RULES_VERSION` or anything exported from `src/engine/index.ts` changes:
+Cut a new tag on `master` whenever `RULES_VERSION` or anything exported from either entry point (`src/engine/index.ts` or `src/bots/index.ts`) changes:
 
 - **major**: a rules change (`RULES_VERSION` bumped) or a breaking API change
 - **minor**: an added export
