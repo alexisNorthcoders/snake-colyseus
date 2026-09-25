@@ -261,7 +261,7 @@ describe("encoder v1", () => {
     });
   });
 
-  it("gives its length, head included, over twice the board's side", () => {
+  it("gives its length, head included, over the board's width plus height", () => {
     close(encode(view({}, { body: [{ x: 4, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 5 }] }))[LENGTH], 0.1);
     close(encode(view())[LENGTH], 1 / 40);
   });

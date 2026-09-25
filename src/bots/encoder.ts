@@ -1,4 +1,4 @@
-import { foodScore, rulesConfig } from "../engine";
+import { Cell, foodScore, rulesConfig } from "../engine";
 import { BotView } from "./view";
 
 /**
@@ -24,7 +24,7 @@ import { BotView } from "./view";
  *        score ÷ the highest food score. All 0 with no pellet.
  * 15-17  Nearest live enemy head (the first listed winning a tie): its forward
  *        and sideways offsets and 1, or all 0 with no live enemy.
- *    18  Its length, head included, ÷ twice the board's side, at most 1.
+ *    18  Its length, head included, ÷ (board width + height), at most 1.
  *    19  The mode: 0 timed, 1 endless.
  *    20  Ticks left ÷ the round's total ticks; 1 in a round with no limit.
  *    21  Its hunger clock ÷ `hungerTicks`, at most 1 (it's draining from 1 on);
@@ -32,7 +32,8 @@ import { BotView } from "./view";
  *    22  The drains its score can take before it starves (score ÷ `starveDrain`,
  *        rounded down) ÷ 10, at most 1; 1 in a timed round, where it can't.
  *
- * Pure and deterministic.
+ * Deterministic, and pure as far as a caller can tell: it reuses one scratch
+ * board between calls, which is safe since a call never yields part way.
  */
 export const ENCODER_VERSION = 1;
 
@@ -40,6 +41,17 @@ export const ENCODER_VERSION = 1;
 export const ENCODER_SIZE = 23;
 
 const maxFoodScore = Math.max(...Object.values(foodScore));
+
+// Where each group of features starts in the output.
+const BLOCKED = 0;
+const HEAD_ON = 9;
+const PELLET = 12;
+const ENEMY = 15;
+const LENGTH = 18;
+const MODE = 19;
+
+/** How far along each turn the blocked features look. */
+const LOOKAHEAD = 3;
 
 /** Drains of score that count as plenty: that many or more encode as 1. */
 const PLENTY_OF_DRAINS = 10;
@@ -69,9 +81,10 @@ export function encode(view: BotView, out: number[] = new Array<number>(ENCODER_
   // `|| 0` so a zero is never -0.
   const forward = (x: number, y: number) => (offset(head.x, x, width) * fx + offset(head.y, y, height) * fy) || 0;
   const sideways = (x: number, y: number) => (offset(head.x, x, width) * rx + offset(head.y, y, height) * ry) || 0;
-  const distance = (x: number, y: number) => {
-    const dx = Math.abs(x - head.x);
-    const dy = Math.abs(y - head.y);
+  // The shortest Manhattan distance between two cells, round the board.
+  const distance = (a: Cell, b: Cell) => {
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
     return Math.min(dx, width - dx) + Math.min(dy, height - dy);
   };
   const wrapX = (x: number) => ((x % width) + width) % width;
@@ -79,7 +92,7 @@ export function encode(view: BotView, out: number[] = new Array<number>(ENCODER_
 
   if (blocked.length < width * height) blocked = new Uint8Array(width * height);
   else blocked.fill(0, 0, width * height);
-  const block = ({ x, y }: { x: number; y: number }) => (blocked[y * width + x] = 1);
+  const block = ({ x, y }: Cell) => (blocked[y * width + x] = 1);
   body.forEach(block);
   live.forEach((other) => {
     block(other.head);
@@ -89,52 +102,47 @@ export function encode(view: BotView, out: number[] = new Array<number>(ENCODER_
   // Left, straight and right, as board vectors.
   const turns = [[-rx, -ry], [fx, fy], [rx, ry]];
   turns.forEach(([tx, ty], t) => {
-    for (let steps = 1; steps <= 3; steps++) {
-      out[t * 3 + steps - 1] = blocked[wrapY(head.y + ty * steps) * width + wrapX(head.x + tx * steps)];
+    for (let steps = 1; steps <= LOOKAHEAD; steps++) {
+      out[BLOCKED + t * LOOKAHEAD + steps - 1] = blocked[wrapY(head.y + ty * steps) * width + wrapX(head.x + tx * steps)];
     }
-    const nextX = wrapX(head.x + tx);
-    const nextY = wrapY(head.y + ty);
-    out[9 + t] = live.some(({ head: h }) => {
-      const dx = Math.abs(h.x - nextX);
-      const dy = Math.abs(h.y - nextY);
-      return Math.min(dx, width - dx) + Math.min(dy, height - dy) === 1;
-    }) ? 1 : 0;
+    const next = { x: wrapX(head.x + tx), y: wrapY(head.y + ty) };
+    out[HEAD_ON + t] = live.some((other) => distance(other.head, next) === 1) ? 1 : 0;
   });
 
   // A pellet on the head has just been eaten, so it isn't counted.
   let pellet: BotView["food"][number] | undefined;
   let bestValue = 0;
   view.food.forEach((food) => {
-    const d = distance(food.x, food.y);
+    const d = distance(food, head);
     if (d > 0 && food.score / d > bestValue) {
       pellet = food;
       bestValue = food.score / d;
     }
   });
-  out[12] = pellet ? forward(pellet.x, pellet.y) : 0;
-  out[13] = pellet ? sideways(pellet.x, pellet.y) : 0;
-  out[14] = pellet ? pellet.score / maxFoodScore : 0;
+  out[PELLET] = pellet ? forward(pellet.x, pellet.y) : 0;
+  out[PELLET + 1] = pellet ? sideways(pellet.x, pellet.y) : 0;
+  out[PELLET + 2] = pellet ? pellet.score / maxFoodScore : 0;
 
-  let enemy: { x: number; y: number } | undefined;
+  let enemy: Cell | undefined;
   let nearest = Infinity;
-  live.forEach(({ head: h }) => {
-    const d = distance(h.x, h.y);
+  live.forEach((other) => {
+    const d = distance(other.head, head);
     if (d < nearest) {
-      enemy = h;
+      enemy = other.head;
       nearest = d;
     }
   });
-  out[15] = enemy ? forward(enemy.x, enemy.y) : 0;
-  out[16] = enemy ? sideways(enemy.x, enemy.y) : 0;
-  out[17] = enemy ? 1 : 0;
+  out[ENEMY] = enemy ? forward(enemy.x, enemy.y) : 0;
+  out[ENEMY + 1] = enemy ? sideways(enemy.x, enemy.y) : 0;
+  out[ENEMY + 2] = enemy ? 1 : 0;
 
-  out[18] = Math.min((body.length + 1) / (width + height), 1);
+  out[LENGTH] = Math.min((body.length + 1) / (width + height), 1);
 
   const endless = view.mode === "endless";
-  out[19] = endless ? 1 : 0;
-  out[20] = !endless && view.tickLimit > 0 ? view.ticksLeft / view.tickLimit : 1;
-  out[21] = endless ? Math.min(view.self.hunger / rulesConfig.hungerTicks, 1) : 0;
-  out[22] = endless
+  out[MODE] = endless ? 1 : 0;
+  out[MODE + 1] = !endless && view.tickLimit > 0 ? view.ticksLeft / view.tickLimit : 1;
+  out[MODE + 2] = endless ? Math.min(view.self.hunger / rulesConfig.hungerTicks, 1) : 0;
+  out[MODE + 3] = endless
     ? Math.min(Math.max(Math.floor(view.self.score / rulesConfig.starveDrain), 0) / PLENTY_OF_DRAINS, 1)
     : 1;
 
