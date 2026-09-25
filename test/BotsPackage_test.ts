@@ -50,7 +50,7 @@ describe("bots package", () => {
       assert.strictEqual(resolved, join(pkgDir, built("bots/index", "js")));
       assert.ok(existsSync(join(pkgDir, built("bots/index", "d.ts"))), "the build has no types for the bots");
       const exported = JSON.parse(run("console.log(JSON.stringify(Object.keys(require('snake-colyseus/bots'))))"));
-      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile"].forEach((name) =>
+      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile", "encode", "ENCODER_VERSION", "ENCODER_SIZE"].forEach((name) =>
         assert.ok(exported.includes(name), `the built bots don't export ${name}`)
       );
     });

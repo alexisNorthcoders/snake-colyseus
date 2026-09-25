@@ -41,6 +41,9 @@ export interface GameShape<C extends Cell> {
     // Ticks until a timed round runs out, set when play begins and counted
     // down each tick. A game that never set it, or an endless one, has no limit.
     ticksLeft?: number;
+    // The ticks a timed round started with, so the time left can be read as a
+    // fraction of it; set with `ticksLeft` and never counted down.
+    tickLimit?: number;
 }
 
 /**

@@ -14,3 +14,6 @@ export { Snapshots, viewFor } from "./view";
 // The rookie: the first bot.
 export type { BotProfile } from "./rookie";
 export { decide, rookie, rookieBotProfile } from "./rookie";
+
+// Encoder v1: a view as the numbers a brain reads.
+export { ENCODER_SIZE, ENCODER_VERSION, encode } from "./encoder";

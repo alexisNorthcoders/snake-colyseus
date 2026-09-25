@@ -57,6 +57,14 @@ const apart = (a = {}, b = {}) => [
 ];
 
 describe("timed round", () => {
+  it("records the round's total ticks when play begins, and keeps it as the clock runs down", () => {
+    const game = begun("timed", 3, apart());
+    assert.strictEqual(game.tickLimit, 3);
+    run(game);
+    assert.strictEqual(game.tickLimit, 3);
+    assert.strictEqual(game.ticksLeft, 2);
+  });
+
   it("ends on exactly its tick limit and not before, counting the ticks left down", () => {
     const game = begun("timed", 3, apart());
     assert.strictEqual(game.ticksLeft, 3);
@@ -133,6 +141,7 @@ describe("endless round", () => {
   it("has no tick limit", () => {
     const game = begun("endless", 1, apart());
     assert.strictEqual(game.ticksLeft, undefined);
+    assert.strictEqual(game.tickLimit, undefined);
 
     for (let t = 0; t < 10; t++) assert.strictEqual(run(game).roundOver, false);
   });
