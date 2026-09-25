@@ -157,6 +157,7 @@ describe("starvation in an endless round", () => {
     assert.deepStrictEqual(reports[H - 1], {
       events: [{ kind: "died", player: "a", cause: "starved" }],
       roundOver: true,
+      reason: "last-standing",
       winnerId: "b"
     });
     assert.strictEqual(game.aliveCount, 1);
@@ -171,7 +172,8 @@ describe("starvation in an endless round", () => {
         { kind: "died", player: "a", cause: "starved" },
         { kind: "died", player: "b", cause: "starved" }
       ],
-      roundOver: true
+      roundOver: true,
+      reason: "last-standing"
     });
   });
 

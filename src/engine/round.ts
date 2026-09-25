@@ -66,5 +66,5 @@ export const removeFromPlay = (
         snake.isDead = true;
         game.aliveCount--;
     }
-    return roundResult(game, isRoundOver(game));
+    return roundResult(game, isRoundOver(game) ? "last-standing" : undefined);
 };

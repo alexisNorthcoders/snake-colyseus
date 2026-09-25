@@ -18,7 +18,7 @@ import {
   tailCells,
   tick,
   turn as turnSnake,
-  winnerOf
+  type RoundEndReason
 } from "../engine";
 
 // Which phase may follow which. Start moves lobby to countdown, and the
@@ -351,12 +351,14 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   /**
-   * Announces the winner the engine named in its report (if there is one:
-   * see `winnerOf`) and the full ranking, and ends the round. Each snake that
+   * Announces why the round ended and the winner the engine named in its
+   * report (if there is one: see `winnerOf`), with the full ranking, and ends
+   * the round. The reason goes in the message because it reaches the client
+   * before the patch with the final ticks left and deaths. Each snake that
    * died says how, and into whom; the snakes alive at the end and anyone who
    * left mid-round have no cause.
    */
-  private endRound({ winnerId }: { winnerId?: string } = { winnerId: winnerOf(this.state) }) {
+  private endRound({ reason, winnerId }: { reason?: RoundEndReason; winnerId?: string }) {
     const rankings = [
       ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score, ...this.roundDeaths.get(p.id) })),
       ...this.roundLeavers
@@ -365,6 +367,7 @@ export class SnakeRoom extends Room<GameState> {
 
     // Left out, not sent as undefined, when nobody won.
     this.broadcast(SnakeRoom.messageTypes.GAME_OVER, {
+      reason,
       ...(winnerId !== undefined && { winnerId }),
       rankings
     });

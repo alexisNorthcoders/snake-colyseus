@@ -68,24 +68,32 @@ export interface DiedEvent {
 export type TickEvent = AteEvent | DiedEvent;
 
 /**
+ * Why a round ended: `last-standing` when one snake or none is left alive,
+ * `time-up` when a timed round ran out of ticks with more than one alive.
+ */
+export type RoundEndReason = "last-standing" | "time-up";
+
+/**
  * What a tick did, as events in the order it did them (every pellet eaten,
  * then every death), and whether the round is now over: at most one snake
- * left alive, or a timed round out of ticks. A round that is over names its
- * winner (see `winnerOf`), left out when there's none.
+ * left alive, or a timed round out of ticks. A round that is over says why
+ * and names its winner (see `winnerOf`), left out when there's none.
  */
 export interface TickReport {
     events: TickEvent[];
     roundOver: boolean;
+    reason?: RoundEndReason;
     winnerId?: string;
 }
 
-/** Whether the round is over, with its winner if it is and there's one. */
+/** Whether the round is over, and if it is why, with its winner if there's one. */
 export const roundResult = (
     game: Pick<GameShape<Cell>, "players">,
-    roundOver: boolean
+    reason: RoundEndReason | undefined
 ): Omit<TickReport, "events"> => {
-    const winnerId = roundOver ? winnerOf(game) : undefined;
-    return { roundOver, ...(winnerId !== undefined && { winnerId }) };
+    if (!reason) return { roundOver: false };
+    const winnerId = winnerOf(game);
+    return { roundOver: true, reason, ...(winnerId !== undefined && { winnerId }) };
 };
 
 /**
@@ -177,7 +185,10 @@ export const tick = <C extends Cell>(game: GameShape<C>, rng: Rng, newCell: NewC
         timeUp = game.ticksLeft <= 0;
     }
 
-    return { events: [...meals, ...deaths.events], ...roundResult(game, deaths.roundOver || timeUp) };
+    // A last tick that also leaves one snake or none alive ended the round the
+    // way the snakes saw it: on the deaths, not the clock.
+    const reason = deaths.roundOver ? "last-standing" : timeUp ? "time-up" : undefined;
+    return { events: [...meals, ...deaths.events], ...roundResult(game, reason) };
 };
 
 /**
