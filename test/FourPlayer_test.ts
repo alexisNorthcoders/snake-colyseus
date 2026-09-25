@@ -70,6 +70,8 @@ describe("four-player rounds", () => {
   it("names the last snake winner, ranking all four players", async () => {
     const { room, state, gameOvers, start } = await fullRoom();
     await start();
+    // No food, so nobody scores on the tick.
+    state.foodCoordinates.clear();
     state.players.forEach((p, i) => (p.snake.score = i * 10));
 
     const [a, b, c, d] = state.players.map((p) => p.snake);
