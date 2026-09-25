@@ -1,6 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
-import { BotView, decide, rookieBotProfile } from "../bot";
+import { BotView, Snapshots, rookie, rookieBotProfile, viewFor } from "../bots";
 import { gameConfig } from "../gameConfig";
 import {
   DiedEvent,
@@ -9,13 +9,10 @@ import {
   beginPlay,
   dealRound,
   directionMap,
-  foodScore,
   layFood,
   modeOf,
   mulberry32,
   removeFromPlay,
-  rulesConfig,
-  tailCells,
   tick,
   turn as turnSnake,
   type RoundEndReason
@@ -71,8 +68,9 @@ export class SnakeRoom extends Room<GameState> {
   // draws from `rng`, derived from `state.seed` at room creation, so the same seed lays out the same food.
   private rng!: Rng;
 
-  // Server-only: other-snake snapshots from the last few ticks, oldest first. Cleared at each round start.
-  private snapshots: Map<string, BotView["others"][number]>[] = [];
+  // Server-only: where every snake was over the last few ticks, for the bot's reaction delay.
+  // Made once `botReactionTicks` is known; cleared at each round start.
+  private snapshots!: Snapshots;
 
   /** The only place the phase changes. Returns false, doing nothing, if `to` can't follow the current phase. */
   private transition(to: Phase) {
@@ -84,7 +82,7 @@ export class SnakeRoom extends Room<GameState> {
   /** Ends the countdown: the snakes move from the next tick on, and a timed round's clock starts. */
   private beginRound() {
     this.countdownTimer?.clear();
-    this.snapshots = [];
+    this.snapshots.clear();
     this.transition("playing");
     beginPlay(this.state, Math.round(gameConfig.roundSeconds * 1000 / this.state.tickMs));
   }
@@ -143,38 +141,18 @@ export class SnakeRoom extends Room<GameState> {
     this.state.players.push(bot);
   }
 
-  /** Records where every snake is this tick, keeping just enough ticks for the bot's reaction delay. */
-  private recordSnapshot() {
-    const snapshot = new Map<string, BotView["others"][number]>();
-    this.state.players.forEach((p) =>
-      snapshot.set(p.id, { head: { x: p.snake.x, y: p.snake.y }, body: tailCells(p.snake), isDead: p.snake.isDead })
-    );
-    this.snapshots.push(snapshot);
-    if (this.snapshots.length > this.botReactionTicks + 1) this.snapshots.shift();
-  }
-
-  /** A plain-data snapshot of the board as a human player would see it. Other snakes are `botReactionTicks` old; the bot's own body and the food are current. */
+  /** The board as `me` sees it, with the bot's reaction delay. */
   private botView(me: Player): BotView {
-    const snake = (p: Player) => ({ head: { x: p.snake.x, y: p.snake.y }, body: tailCells(p.snake) });
-    // The oldest snapshot stands in early in a round, before n ticks exist.
-    const past = this.snapshots[0];
-    return {
-      grid: { width: rulesConfig.scaleFactor, height: rulesConfig.scaleFactor },
-      self: { ...snake(me), movedDirection: { ...me.snake.movedDirection } },
-      others: this.state.players
-        .filter((p) => p !== me)
-        .map((p) => past?.get(p.id) ?? { ...snake(p), isDead: p.snake.isDead }),
-      food: this.state.foodCoordinates.map((f) => ({ x: f.x, y: f.y, type: f.type, score: foodScore[f.type] }))
-    };
+    return viewFor(this.state, me, this.snapshots);
   }
 
   /** Asks each live bot which way to go; a bot that throws keeps its current direction. */
   private steerBots() {
-    this.recordSnapshot();
+    this.snapshots.record(this.state);
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
       try {
-        this.turn(player.snake, decide(this.botView(player), rookieBotProfile));
+        this.turn(player.snake, rookie(this.botView(player)));
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
@@ -209,6 +187,7 @@ export class SnakeRoom extends Room<GameState> {
       }
       this.seatBot();
     }
+    this.snapshots = new Snapshots(this.botReactionTicks);
 
     layFood(this.state, this.rng, newFood);
 

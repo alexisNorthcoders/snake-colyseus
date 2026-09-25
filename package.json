@@ -2,19 +2,26 @@
   "private": true,
   "name": "snake-colyseus",
   "version": "1.0.0",
-  "description": "Snake on Colyseus: the game server, and its rules engine as an installable package",
+  "description": "Snake on Colyseus: the game server, and its rules engine and bots as an installable package",
   "main": "build/index.js",
   "exports": {
     ".": "./build/index.js",
     "./engine": {
       "types": "./build/engine/index.d.ts",
       "default": "./build/engine/index.js"
+    },
+    "./bots": {
+      "types": "./build/bots/index.d.ts",
+      "default": "./build/bots/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "engine": [
         "build/engine/index.d.ts"
+      ],
+      "bots": [
+        "build/bots/index.d.ts"
       ]
     }
   },

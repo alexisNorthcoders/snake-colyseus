@@ -1,6 +1,6 @@
 import assert from "assert";
 
-import { BotView, decide, rookieBotProfile } from "../src/bot";
+import { BotView, decide, rookieBotProfile } from "../src/bots";
 
 const view = (over: Partial<BotView> = {}): BotView => ({
   grid: { width: 20, height: 20 },
