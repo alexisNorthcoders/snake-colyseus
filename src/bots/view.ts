@@ -19,7 +19,7 @@ export interface ViewedGame {
 
 type SeenSnake = BotView["others"][number];
 
-const seen = ({ snake }: PlayerShape<Cell>): SeenSnake =>
+const seenSnake = ({ snake }: PlayerShape<Cell>): SeenSnake =>
   ({ head: { x: snake.x, y: snake.y }, body: tailCells(snake), isDead: snake.isDead });
 
 /**
@@ -35,11 +35,12 @@ export class Snapshots {
   /** Records where every snake is now, forgetting any tick older than `delay` before it. */
   record(game: Pick<ViewedGame, "players">) {
     const snapshot = new Map<string, SeenSnake>();
-    for (const player of game.players) snapshot.set(player.id, seen(player));
+    for (const player of game.players) snapshot.set(player.id, seenSnake(player));
     this.ticks.push(snapshot);
     if (this.ticks.length > this.delay + 1) this.ticks.shift();
   }
 
+  /** Forgets every tick recorded, as at round start. */
   clear() {
     this.ticks = [];
   }
@@ -56,11 +57,11 @@ export class Snapshots {
  * are now, if they were never recorded).
  */
 export function viewFor(game: ViewedGame, me: PlayerShape<Cell>, snapshots: Snapshots): BotView {
-  const { head, body } = seen(me);
+  const { head, body } = seenSnake(me);
   return {
     grid: { width: rulesConfig.scaleFactor, height: rulesConfig.scaleFactor },
     self: { head, body, movedDirection: { ...me.snake.movedDirection } },
-    others: [...game.players].filter((p) => p !== me).map((p) => snapshots.past(p.id) ?? seen(p)),
+    others: [...game.players].filter((p) => p !== me).map((p) => snapshots.past(p.id) ?? seenSnake(p)),
     food: [...game.foodCoordinates].map((f) => ({ x: f.x, y: f.y, type: f.type, score: foodScore[f.type] }))
   };
 }
