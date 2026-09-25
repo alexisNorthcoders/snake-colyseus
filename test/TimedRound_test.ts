@@ -65,7 +65,7 @@ describe("timed round", () => {
     assert.strictEqual(game.ticksLeft, 2);
     assert.strictEqual(run(game).roundOver, false);
     assert.strictEqual(game.ticksLeft, 1);
-    assert.deepStrictEqual(run(game), { events: [], roundOver: true });
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true, reason: "time-up" });
     assert.strictEqual(game.ticksLeft, 0);
   });
 
@@ -88,6 +88,7 @@ describe("timed round", () => {
         { kind: "died", player: "b", cause: "head-on", by: "a" }
       ],
       roundOver: true,
+      reason: "last-standing",
       winnerId: "c"
     });
     assert.strictEqual(game.ticksLeft, 99);
@@ -102,12 +103,12 @@ describe("timed round", () => {
     players[2].snake.isDead = true;
     game.aliveCount = 2;
 
-    assert.deepStrictEqual(run(game), { events: [], roundOver: true, winnerId: "b" });
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true, reason: "time-up", winnerId: "b" });
   });
 
   it("breaks a score tie on time in favour of the longer snake", () => {
     const game = begun("timed", 1, apart({ score: 20, size: 3 }, { score: 20, size: 2 }));
-    assert.deepStrictEqual(run(game), { events: [], roundOver: true, winnerId: "a" });
+    assert.deepStrictEqual(run(game), { events: [], roundOver: true, reason: "time-up", winnerId: "a" });
   });
 
   it("calls a tie on score and length a draw, with no winner", () => {

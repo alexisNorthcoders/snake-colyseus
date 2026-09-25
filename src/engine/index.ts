@@ -33,6 +33,7 @@ export type {
     FoodShape,
     GameShape,
     PlayerShape,
+    RoundEndReason,
     SnakeShape,
     TickEvent,
     TickReport

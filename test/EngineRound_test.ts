@@ -127,7 +127,7 @@ describe("engine leaver", () => {
 
     const report = removeFromPlay(game, game.players[0].snake);
 
-    assert.deepStrictEqual(report, { roundOver: true, winnerId: "b" });
+    assert.deepStrictEqual(report, { roundOver: true, reason: "last-standing", winnerId: "b" });
   });
 
   it("doesn't count a snake that was already dead twice", () => {

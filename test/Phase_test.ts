@@ -44,7 +44,7 @@ describe("room phase", () => {
   it("ends terminally: a finished round never returns to the lobby", async () => {
     const { room, state } = await twoPlayerRoom();
     room.state.phase = "playing";
-    room.endRound();
+    room.endRound({ reason: "last-standing" });
     assert.strictEqual(state.phase, "ended");
     assert.strictEqual(room.transition("lobby"), false);
     assert.strictEqual(room.transition("playing"), false);
@@ -53,7 +53,7 @@ describe("room phase", () => {
   it("ignores startGame after the round ended", async () => {
     const { room, c1, state } = await twoPlayerRoom();
     room.state.phase = "playing";
-    room.endRound();
+    room.endRound({ reason: "last-standing" });
 
     c1.send(SnakeRoom.messageTypes.START_GAME);
     await new Promise((r) => setTimeout(r, 100));
@@ -72,7 +72,7 @@ describe("room phase", () => {
     const during = await colyseus.sdk.joinOrCreate("snake", joinOptions("y", "#ffff00"));
     assert.notStrictEqual(during.roomId, room.roomId);
 
-    room.endRound();
+    room.endRound({ reason: "last-standing" });
     assert.strictEqual(room.locked, true, "the room unlocked after the round ended");
     const after = await colyseus.sdk.joinOrCreate("snake", joinOptions("z", "#00ffff"));
     assert.notStrictEqual(after.roomId, room.roomId);
