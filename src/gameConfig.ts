@@ -1,9 +1,10 @@
 import { rulesConfig } from "./engine";
 
 /**
- * The room's and the client's settings. The board size and the pellet count
- * are rules, so they are defined in the engine and only mirrored here, for
- * reading: setting them here would not change the engine's.
+ * The room's and the client's settings. The board size, the pellet count and
+ * a timed round's length are rules, so they are defined in the engine and
+ * only mirrored here, for reading: setting them here would not change the
+ * engine's.
  */
 export const gameConfig = {
     side: 800,
@@ -16,9 +17,7 @@ export const gameConfig = {
     // and the real time between counts; tests shorten both.
     countdownSeconds: 3,
     countdownTickMs: 1000,
-    // Seconds of play in a timed round, turned into ticks at the room's speed
-    // when play begins; tests shorten it.
-    roundSeconds: 180,
+    roundSeconds: rulesConfig.roundSeconds,
     foodStorage: rulesConfig.foodStorage,
     backgroundColour: 'black',
     scaleFactor: rulesConfig.scaleFactor,

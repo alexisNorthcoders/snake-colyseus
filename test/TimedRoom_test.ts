@@ -2,24 +2,24 @@ import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
-import { gameConfig } from "../src/gameConfig";
+import { rulesConfig } from "../src/engine";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { joinOptions, waitForState } from "./helpers";
 
 describe("timed room", () => {
   let colyseus: ColyseusTestServer;
-  const saved = { ...gameConfig };
+  const saved = rulesConfig.roundSeconds;
 
   before(async () => (colyseus = await boot(appConfig)));
   after(async () => colyseus.shutdown());
 
   beforeEach(async () => {
     // Half a second at 8 ticks a second: a 4-tick round.
-    gameConfig.roundSeconds = 0.5;
+    rulesConfig.roundSeconds = 0.5;
     await colyseus.cleanup();
   });
-  afterEach(() => Object.assign(gameConfig, saved));
+  afterEach(() => (rulesConfig.roundSeconds = saved));
 
   /**
    * Plays a two-player timed round from Start to game over by hand, a tick at
@@ -74,7 +74,7 @@ describe("timed room", () => {
   });
 
   it("ends early on a death with the survivor as the winner, however much the dead snake scored", async () => {
-    gameConfig.roundSeconds = 180;
+    rulesConfig.roundSeconds = saved;
     const room: any = await colyseus.createRoom<GameState>("snake", { speed: 8 });
     const c1 = await colyseus.connectTo(room, joinOptions("a", "#ff0000"));
     await colyseus.connectTo(room, joinOptions("b", "#00ff00"));
@@ -105,7 +105,7 @@ describe("timed room", () => {
   });
 
   it("starts the clock at the round's seconds at the room's speed", async () => {
-    gameConfig.roundSeconds = 180;
+    rulesConfig.roundSeconds = saved;
     const room: any = await colyseus.createRoom<GameState>("snake", { speed: 10 });
     const c1 = await colyseus.connectTo(room, joinOptions("a", "#ff0000"));
     room.setSimulationInterval(null);

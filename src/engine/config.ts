@@ -1,7 +1,7 @@
 /*
- * The values the rules are played by: the board, the pellets, their scores
- * and the spawn table. Changing any of them changes the game, so bump
- * `RULES_VERSION` with it.
+ * The values the rules are played by: the board, the pellets, their scores,
+ * the spawn table and a timed round's length. Changing any of them changes
+ * the game, so bump `RULES_VERSION` with it.
  */
 
 export const rulesConfig = {
@@ -16,6 +16,9 @@ export const rulesConfig = {
     hungerTicks: 80,
     starveDrain: 5,
     starveDrainTicks: 8,
+    // Seconds of play in a timed round; `roundTicks` turns it into a tick
+    // limit at a given speed.
+    roundSeconds: 180,
 }
 
 /**

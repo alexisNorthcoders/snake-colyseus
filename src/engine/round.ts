@@ -1,4 +1,4 @@
-import { Cell, spawnCells, startingPositions } from "./config";
+import { Cell, rulesConfig, spawnCells, startingPositions } from "./config";
 import { NewCell, setTail } from "./tail";
 import { GameShape, SnakeShape, TickReport, isRoundOver, roundResult } from "./tick";
 
@@ -39,6 +39,12 @@ export const dealRound = <C extends Cell>(
 
     return (offset + spawns.length) % startingPositions.length;
 };
+
+/**
+ * A timed round's tick limit at `ticksPerSecond`: its length in seconds,
+ * rounded to the nearest whole tick.
+ */
+export const roundTicks = (ticksPerSecond: number) => Math.round(rulesConfig.roundSeconds * ticksPerSecond);
 
 /**
  * The snakes start moving: everyone still in the game is counted alive, and a

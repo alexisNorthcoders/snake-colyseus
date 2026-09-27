@@ -8,9 +8,12 @@ import {
   beginPlay,
   mulberry32,
   newPlainCell,
+  roundTicks,
+  rulesConfig,
   setTail,
   tick
 } from "../src/engine";
+import { gameConfig } from "../src/gameConfig";
 
 type PlainPlayer = PlayerShape<Cell>;
 type PlainGame = GameShape<Cell> & { players: PlainPlayer[] };
@@ -57,6 +60,35 @@ const apart = (a = {}, b = {}) => [
 ];
 
 describe("timed round", () => {
+  it("lasts three minutes", () => {
+    assert.strictEqual(rulesConfig.roundSeconds, 180);
+  });
+
+  it("turns its length into a tick limit at a given speed", () => {
+    assert.strictEqual(roundTicks(8), 1440);
+    assert.strictEqual(roundTicks(4), 720);
+    assert.strictEqual(roundTicks(10), 1800);
+    assert.strictEqual(roundTicks(15), 2700);
+  });
+
+  it("gives the tick limit the room worked out from its tick length before, at every speed a room allows", () => {
+    for (let speed = gameConfig.minSpeed; speed <= gameConfig.maxSpeed; speed++) {
+      assert.strictEqual(roundTicks(speed), Math.round(180 * 1000 / (1000 / speed)), `at ${speed} ticks a second`);
+    }
+  });
+
+  it("rounds a length that isn't a whole number of ticks to the nearest tick", () => {
+    const saved = rulesConfig.roundSeconds;
+    rulesConfig.roundSeconds = 0.5;
+    try {
+      assert.strictEqual(roundTicks(8), 4);
+      assert.strictEqual(roundTicks(7), 4);
+      assert.strictEqual(roundTicks(5), 3);
+    } finally {
+      rulesConfig.roundSeconds = saved;
+    }
+  });
+
   it("records the round's total ticks when play begins, and keeps it as the clock runs down", () => {
     const game = begun("timed", 3, apart());
     assert.strictEqual(game.tickLimit, 3);
