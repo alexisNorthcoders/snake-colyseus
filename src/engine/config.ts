@@ -1,7 +1,7 @@
 /*
- * The values the rules are played by: the board, the pellets, their scores
- * and the spawn table. Changing any of them changes the game, so bump
- * `RULES_VERSION` with it.
+ * The values the rules are played by: the board, the pellets, their scores,
+ * the spawn table and a timed round's length. Changing any of them changes
+ * the game, so bump `RULES_VERSION` with it.
  */
 
 export const rulesConfig = {
