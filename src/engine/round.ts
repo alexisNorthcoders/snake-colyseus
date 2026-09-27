@@ -42,15 +42,19 @@ export const dealRound = <C extends Cell>(
 
 /**
  * The snakes start moving: everyone still in the game is counted alive, and a
- * timed game's clock starts at `tickLimit` ticks. An endless game ignores it;
- * its snakes' hunger clocks start from the 0 `dealRound` left them at.
+ * timed game's clock starts at `tickLimit` ticks, which is recorded as the
+ * round's total. An endless game ignores it; its snakes' hunger clocks start
+ * from the 0 `dealRound` left them at.
  */
 export const beginPlay = (
-    game: Pick<GameShape<Cell>, "players" | "aliveCount" | "mode" | "ticksLeft">,
+    game: Pick<GameShape<Cell>, "players" | "aliveCount" | "mode" | "ticksLeft" | "tickLimit">,
     tickLimit?: number
 ) => {
     game.aliveCount = [...game.players].length;
-    if (game.mode !== "endless" && tickLimit !== undefined) game.ticksLeft = tickLimit;
+    if (game.mode !== "endless" && tickLimit !== undefined) {
+        game.ticksLeft = tickLimit;
+        game.tickLimit = tickLimit;
+    }
 };
 
 /**

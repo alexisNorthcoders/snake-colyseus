@@ -74,6 +74,34 @@ describe("bot view", () => {
   });
 });
 
+describe("bot view of the mode", () => {
+  it("shows a timed round's mode, ticks left and total ticks, and its own score and hunger", () => {
+    const game = newGame(["me", "them"]);
+    beginPlay(game, 50);
+    const [me] = game.players;
+    me.snake.score = 30;
+    tick(game, mulberry32(1), newPlainCell);
+    const view = viewFor(game, me, new Snapshots(0));
+    assert.strictEqual(view.mode, "timed");
+    assert.strictEqual(view.ticksLeft, 49);
+    assert.strictEqual(view.tickLimit, 50);
+    assert.strictEqual(view.self.score, 30);
+    assert.strictEqual(view.self.hunger, 0);
+  });
+
+  it("shows an endless round with no clock, and its hunger rising", () => {
+    const game: PlainGame = { ...newGame(["me", "them"]), mode: "endless" };
+    const [me] = game.players;
+    tick(game, mulberry32(1), newPlainCell);
+    tick(game, mulberry32(1), newPlainCell);
+    const view = viewFor(game, me, new Snapshots(0));
+    assert.strictEqual(view.mode, "endless");
+    assert.strictEqual(view.ticksLeft, 0);
+    assert.strictEqual(view.tickLimit, 0);
+    assert.strictEqual(view.self.hunger, 2);
+  });
+});
+
 describe("headless rookie against rookie", () => {
   /** Plays rookie against rookie from `seed`, each seeing the other `delay` ticks late, until the round is over. */
   const playRound = (seed: number, delay: number) => {

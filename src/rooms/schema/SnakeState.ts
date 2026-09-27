@@ -116,6 +116,8 @@ export class GameState extends Schema {
     @type("number") aliveCount: number = 0;
     // Ticks left in a timed round, counted down each tick; this times `tickMs` is the ms left. Unused in an endless round.
     @type("number") ticksLeft: number = 0;
+    // The ticks a timed round started with, so clients can show the time left as a fraction of it.
+    @type("number") tickLimit: number = 0;
     // Ticks a snake can go without food before its score starts draining in
     // an endless round, so clients know when to show the hunger bar.
     @type("number") hungerTicks: number = rulesConfig.hungerTicks;

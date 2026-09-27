@@ -1,9 +1,15 @@
-import { Cell, Direction, FoodShape, PlayerShape, foodScore, rulesConfig, tailCells } from "../engine";
+import { Cell, Direction, FoodShape, GameMode, GameShape, PlayerShape, foodScore, modeOf, rulesConfig, tailCells } from "../engine";
 
 /** Everything a human player could see this tick, as plain data. */
 export interface BotView {
   grid: { width: number; height: number };
-  self: { head: Cell; body: Cell[]; movedDirection: { x: number; y: number } };
+  mode: GameMode;
+  // The timer: ticks left in a timed round and the ticks it started with,
+  // both 0 in a round with no limit (every endless one).
+  ticksLeft: number;
+  tickLimit: number;
+  // Its score, and its hunger clock: ticks since it last ate, only counted in an endless round.
+  self: { head: Cell; body: Cell[]; movedDirection: { x: number; y: number }; score: number; hunger: number };
   others: { head: Cell; body: Cell[]; isDead: boolean }[];
   food: { x: number; y: number; type: string; score: number }[];
 }
@@ -12,7 +18,7 @@ export interface BotView {
 export type Decider = (view: BotView) => Direction;
 
 /** The part of a game a bot's view is built from: the schema state in the room, plain objects headless. */
-export interface ViewedGame {
+export interface ViewedGame extends Pick<GameShape<Cell>, "mode" | "ticksLeft" | "tickLimit"> {
   players: Iterable<PlayerShape<Cell>>;
   foodCoordinates: Iterable<FoodShape>;
 }
@@ -58,9 +64,14 @@ export class Snapshots {
  */
 export function viewFor(game: ViewedGame, me: PlayerShape<Cell>, snapshots: Snapshots): BotView {
   const { head, body } = seenSnake(me);
+  const mode = modeOf(game.mode);
+  const clocked = mode === "timed" && game.tickLimit !== undefined;
   return {
     grid: { width: rulesConfig.scaleFactor, height: rulesConfig.scaleFactor },
-    self: { head, body, movedDirection: { ...me.snake.movedDirection } },
+    mode,
+    ticksLeft: clocked ? game.ticksLeft ?? 0 : 0,
+    tickLimit: clocked ? game.tickLimit : 0,
+    self: { head, body, movedDirection: { ...me.snake.movedDirection }, score: me.snake.score, hunger: me.snake.hunger },
     others: [...game.players].filter((p) => p !== me).map((p) => snapshots.past(p.id) ?? seenSnake(p)),
     food: [...game.foodCoordinates].map((f) => ({ x: f.x, y: f.y, type: f.type, score: foodScore[f.type] }))
   };

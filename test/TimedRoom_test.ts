@@ -113,5 +113,6 @@ describe("timed room", () => {
     await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
 
     assert.strictEqual((room.state as GameState).ticksLeft, 1800);
+    assert.strictEqual((room.state as GameState).tickLimit, 1800);
   });
 });
