@@ -16,6 +16,9 @@ export const rulesConfig = {
     hungerTicks: 80,
     starveDrain: 5,
     starveDrainTicks: 8,
+    // Seconds of play in a timed round; `roundTicks` turns it into a tick
+    // limit at a given speed.
+    roundSeconds: 180,
 }
 
 /**

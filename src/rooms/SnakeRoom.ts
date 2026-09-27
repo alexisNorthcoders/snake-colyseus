@@ -13,6 +13,7 @@ import {
   modeOf,
   mulberry32,
   removeFromPlay,
+  roundTicks,
   tick,
   turn as turnSnake,
   type RoundEndReason
@@ -49,6 +50,10 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only, not synced: where the next round starts reading the spawn
   // table. Clients never needed it.
   private spawnOffset = 0;
+
+  // Server-only: the room's speed, fixed at creation. Synced as `tickMs`, but
+  // kept whole here so a timed round's tick limit is worked out from it exactly.
+  private ticksPerSecond = gameConfig.fps;
 
   // Server-only: players who left during the current round, kept so their
   // score still appears in the final rankings. Cleared at each round start.
@@ -87,7 +92,7 @@ export class SnakeRoom extends Room<GameState> {
     this.countdownTimer?.clear();
     this.snapshots.clear();
     this.transition("playing");
-    beginPlay(this.state, Math.round(gameConfig.roundSeconds * 1000 / this.state.tickMs));
+    beginPlay(this.state, roundTicks(this.ticksPerSecond));
   }
 
   /** Lobby to countdown: locks the room, deals out spawns and starts the clock. Does nothing outside the lobby. */
@@ -171,10 +176,10 @@ export class SnakeRoom extends Room<GameState> {
     this.setState(new GameState());
     this.state.mode = modeOf(options?.mode);
     const speed = options?.speed;
-    const ticksPerSecond = typeof speed === "number" && Number.isFinite(speed)
+    this.ticksPerSecond = typeof speed === "number" && Number.isFinite(speed)
       ? Math.min(gameConfig.maxSpeed, Math.max(gameConfig.minSpeed, Math.round(speed)))
       : gameConfig.fps;
-    this.state.tickMs = 1000 / ticksPerSecond;
+    this.state.tickMs = 1000 / this.ticksPerSecond;
     this.state.backgroundNumber = Math.floor(Math.random() * 91) + 1;
     const seed = options?.seed;
     this.state.seed = Number.isInteger(seed) && seed >= 0 && seed < 2 ** 32

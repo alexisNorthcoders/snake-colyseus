@@ -22,8 +22,8 @@ export { modeOf } from "./mode";
 export type { Direction, DirectionVector } from "./direction";
 export { directionMap } from "./direction";
 
-// Starting a round, and a player leaving it.
-export { beginPlay, dealRound, removeFromPlay } from "./round";
+// Starting a round, how long a timed one lasts, and a player leaving it.
+export { beginPlay, dealRound, removeFromPlay, roundTicks } from "./round";
 
 // Playing it, one tick at a time.
 export type {
