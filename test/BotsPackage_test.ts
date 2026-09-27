@@ -50,9 +50,22 @@ describe("bots package", () => {
       assert.strictEqual(resolved, join(pkgDir, built("bots/index", "js")));
       assert.ok(existsSync(join(pkgDir, built("bots/index", "d.ts"))), "the build has no types for the bots");
       const exported = JSON.parse(run("console.log(JSON.stringify(Object.keys(require('snake-colyseus/bots'))))"));
-      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile", "encode", "ENCODER_VERSION", "ENCODER_SIZE", "BRAIN_FORMAT", "BRAIN_FORMAT_VERSION", "forward", "brainDecider", "brainProblems", "dummyBrain"].forEach((name) =>
+      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile", "encode", "ENCODER_VERSION", "ENCODER_SIZE", "BRAIN_FORMAT", "BRAIN_FORMAT_VERSION", "forward", "brainDecider", "brainProblems", "dummyBrain", "roster", "rosterSources", "loadRoster", "pickBot", "deciderFor", "rosterListing"].forEach((name) =>
         assert.ok(exported.includes(name), `the built bots don't export ${name}`)
       );
+    });
+
+    it("carries the roster, with a decider for every entry", () => {
+      const played = JSON.parse(run(`
+        const { roster, deciderFor } = require('snake-colyseus/bots');
+        const view = {
+          grid: { width: 20, height: 20 }, mode: "timed", ticksLeft: 10, tickLimit: 10,
+          self: { head: { x: 5, y: 5 }, body: [], movedDirection: { x: 1, y: 0 }, score: 0, hunger: 0 },
+          others: [], food: []
+        };
+        console.log(JSON.stringify(roster.map((entry) => [entry.id, deciderFor(entry)(view)])));
+      `));
+      assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"]]);
     });
 
     it("doesn't load Colyseus when imported", () => {

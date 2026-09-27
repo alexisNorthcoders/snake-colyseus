@@ -7,6 +7,7 @@ import { playground } from "@colyseus/playground";
  */
 import { SnakeRoom } from "./rooms/SnakeRoom";
 import { modeOf } from "./engine";
+import { rosterListing } from "./bots";
 
 export default config({
     initializeGameServer: (gameServer) => {
@@ -30,6 +31,12 @@ export default config({
          */
         app.get("/hello_world", (req, res) => {
             res.send("It's time to kick ass and chew bubblegum!");
+        });
+
+        // The bots a vs-bot room can play, for the client's picker: every
+        // entry's metadata, without its weights.
+        app.get("/roster", (req, res) => {
+            res.json(rosterListing());
         });
 
         /**

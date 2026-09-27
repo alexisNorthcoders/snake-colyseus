@@ -1,6 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
-import { BotView, Snapshots, rookie, rookieBotProfile, viewFor } from "../bots";
+import { BotView, Decider, RosterEntry, Snapshots, deciderFor, pickBot, viewFor } from "../bots";
 import { gameConfig } from "../gameConfig";
 import {
   DiedEvent,
@@ -60,6 +60,9 @@ export class SnakeRoom extends Room<GameState> {
 
   // Server-only: the running countdown's timer, cleared when it reaches 0.
   private countdownTimer?: { clear(): void };
+
+  // Server-only: how the bot plays, from its roster entry. Fixed at creation.
+  private botDecider?: Decider;
 
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
   private botReactionTicks = defaultBotReactionTicks;
@@ -133,10 +136,11 @@ export class SnakeRoom extends Room<GameState> {
    * locked from creation: `spawnCells` tops out at 4 snakes, so a bot must
    * never sit in a room that can still take humans.
    */
-  private seatBot() {
+  private seatBot(entry: RosterEntry) {
+    this.botDecider = deciderFor(entry);
     // The colon can't appear in a session id, so this never collides with one.
     const id = `bot:${this.roomId}`;
-    const bot = new Player(id, rookieBotProfile.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
+    const bot = new Player(id, entry.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
     bot.isBot = true;
     this.state.players.push(bot);
   }
@@ -152,7 +156,7 @@ export class SnakeRoom extends Room<GameState> {
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
       try {
-        this.turn(player.snake, rookie(this.botView(player)));
+        this.turn(player.snake, this.botDecider(this.botView(player)));
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
@@ -185,7 +189,8 @@ export class SnakeRoom extends Room<GameState> {
       if (typeof ticks === "number" && Number.isFinite(ticks)) {
         this.botReactionTicks = Math.min(maxBotReactionTicks, Math.max(0, Math.round(ticks)));
       }
-      this.seatBot();
+      // The roster snake asked for, or the rookie if it isn't there.
+      this.seatBot(pickBot(options.botId));
     }
     this.snapshots = new Snapshots(this.botReactionTicks);
 

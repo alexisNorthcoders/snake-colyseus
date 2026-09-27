@@ -10,7 +10,7 @@ export interface BotProfile {
   avoidSelfTrap: boolean;
 }
 
-export const rookieBotProfile: BotProfile = { name: "Bot", visionRadius: 8, avoidSelfTrap: false };
+export const rookieBotProfile: BotProfile = { name: "Rookie", visionRadius: 8, avoidSelfTrap: false };
 
 const directions = Object.keys(directionMap) as Direction[];
 
