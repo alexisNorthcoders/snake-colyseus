@@ -17,3 +17,10 @@ export { decide, rookie, rookieBotProfile } from "./rookie";
 
 // Encoder v1: a view as the numbers a brain reads.
 export { ENCODER_SIZE, ENCODER_VERSION, encode } from "./encoder";
+
+// Brains: trained snakes, saved as JSON, played as a `Decider`.
+export type { Activation, Brain } from "./brain";
+export { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, brainDecider, brainProblems, forward } from "./brain";
+
+// Dummy: the hand-made brain.
+export { dummyBrain } from "./dummy";
