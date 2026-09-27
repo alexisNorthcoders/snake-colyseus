@@ -4,6 +4,8 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
+import { deciderFor, pickBot } from "../src/bots";
+import { directionMap } from "../src/engine";
 import { joinOptions, wait } from "./helpers";
 
 const until = async (condition: () => boolean) => {
@@ -128,6 +130,51 @@ describe("vs-bot room", () => {
     await until(() => state.phase === "ended");
     assert.strictEqual(gameOvers[0].winnerId, state.players.find((p) => p.isBot)!.id);
     await until(() => room.disposed || colyseus.getRoomById(room.roomId) === undefined);
+  });
+
+  describe("choosing a bot", () => {
+    it("plays the rookie without a botId, or with one the roster doesn't have", async () => {
+      for (const extra of [{}, { botId: "nobody" }, { botId: 42 }]) {
+        const { room, state } = await vsBotRoom(extra);
+        assert.strictEqual(room.botEntry.id, "rookie");
+        assert.strictEqual(state.players.find((p) => p.isBot)!.name, "Rookie");
+      }
+    });
+
+    it("seats Dummy by its id, named after it, and plays a full round with it", async () => {
+      const { room, state, human, gameOvers, start } = await vsBotRoom({ botId: "dummy" });
+      room.setSimulationInterval(null);
+      const bot = state.players.find((p) => p.isBot)!;
+      assert.strictEqual(room.botEntry.id, "dummy");
+      assert.strictEqual(bot.name, "Dummy");
+      await start();
+
+      // Out of each other's way: the bot at the top heading right, the human below.
+      const me = state.players.find((p) => p.id === human.sessionId)!;
+      bot.snake.x = 2; bot.snake.y = 2;
+      me.snake.x = 2; me.snake.y = 15;
+      me.snake.direction.x = 1; me.snake.direction.y = 0;
+      const dummy = deciderFor(pickBot("dummy"));
+      for (let i = 0; i < 10 && state.phase === "playing"; i++) {
+        const expected = dummy(room.botView(bot));
+        const { x, y } = bot.snake;
+        room.update();
+        if (bot.snake.isDead) break;
+        assert.notDeepStrictEqual({ x: bot.snake.x, y: bot.snake.y }, { x, y }, "the bot didn't move");
+        const moved = bot.snake.movedDirection;
+        assert.deepStrictEqual({ x: moved.x, y: moved.y }, directionMap[expected], "the bot didn't play as Dummy");
+      }
+
+      // Then the human runs into itself, and the round ends.
+      if (state.phase === "playing") {
+        me.snake.setTail([{ x: me.snake.x + 1, y: me.snake.y }, { x: me.snake.x + 1, y: me.snake.y + 1 }, { x: me.snake.x, y: me.snake.y + 1 }]);
+        room.update();
+      }
+      assert.strictEqual(state.phase, "ended");
+      assert.strictEqual(gameOvers.length, 1);
+      assert.strictEqual(gameOvers[0].rankings.length, 2);
+      assert.ok(gameOvers[0].rankings.some((r: any) => r.name === "Dummy"));
+    });
   });
 
   describe("reaction delay", () => {
