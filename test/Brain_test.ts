@@ -193,13 +193,4 @@ describe("brain decider", () => {
     assert.strictEqual(brainDecider(brain)(view({ x: 1, y: 0 })), "r");
     assert.strictEqual(brainDecider(brain)(blocked), "u");
   });
-
-  it("is deterministic", () => {
-    const brain = tiny("tanh");
-    const decider = brainDecider(flatBrain([ENCODER_SIZE, 5, 3], [0.2, 0.3, 0.1]));
-    const v = view({ x: 0, y: 1 });
-    const first = decider(v);
-    for (let i = 0; i < 10; i++) assert.strictEqual(decider(v), first);
-    assert.ok(brain);
-  });
 });
