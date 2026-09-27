@@ -1,4 +1,4 @@
-import { Brain, brainProblems } from "./brain";
+import { Brain } from "./brain";
 import dummy from "./brains/dummy.json";
 
 /**
@@ -11,8 +11,7 @@ import dummy from "./brains/dummy.json";
  * it is. The outputs then give straight a small lead, take a lot off any way
  * that's in danger, and lean towards the pellet: straight while it's ahead,
  * turning towards its side once it's level or behind.
+ *
+ * Its test holds it to being a valid brain; it isn't checked on import.
  */
 export const dummyBrain = dummy as Brain;
-
-const problems = brainProblems(dummyBrain);
-if (problems.length > 0) throw new Error(`Dummy isn't a valid brain: ${problems.join("; ")}`);

@@ -43,7 +43,7 @@ const activations: Record<Activation, (x: number) => number> = {
   sigmoid: (x) => 1 / (1 + Math.exp(-x))
 };
 
-const fields = ["format", "formatVersion", "encoderVersion", "rulesVersion", "sizes", "activation", "layers"] as const;
+const requiredFields = ["format", "formatVersion", "encoderVersion", "rulesVersion", "sizes", "activation", "layers"] as const;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -56,8 +56,8 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 export function brainProblems(value: unknown): string[] {
   if (!isObject(value)) return ["a brain must be an object"];
   const problems: string[] = [];
-  const brain = value as Partial<Record<(typeof fields)[number], unknown>>;
-  fields.forEach((field) => {
+  const brain = value as Partial<Record<(typeof requiredFields)[number], unknown>>;
+  requiredFields.forEach((field) => {
     if (brain[field] === undefined) problems.push(`missing field "${field}"`);
   });
 
@@ -71,7 +71,7 @@ export function brainProblems(value: unknown): string[] {
   }
   if (brain.rulesVersion !== undefined && !Number.isInteger(brain.rulesVersion)) problems.push("rulesVersion isn't a whole number");
   if (brain.activation !== undefined && !Object.hasOwn(activations, brain.activation as string)) {
-    problems.push(`activation ${JSON.stringify(brain.activation)} isn't tanh, relu or sigmoid`);
+    problems.push(`activation ${JSON.stringify(brain.activation)} isn't one of ${Object.keys(activations).join(", ")}`);
   }
 
   const { sizes, layers } = brain;
@@ -92,14 +92,20 @@ export function brainProblems(value: unknown): string[] {
   }
   // Each number in `list`, which should be `length` long, must be finite.
   const checkNumbers = (list: unknown, length: number, what: string) => {
-    if (!Array.isArray(list) || list.length !== length) return problems.push(`${what} must be a list of ${length}`);
+    if (!Array.isArray(list) || list.length !== length) {
+      problems.push(`${what} must be a list of ${length}`);
+      return;
+    }
     list.forEach((n, i) => {
       if (typeof n !== "number" || !Number.isFinite(n)) problems.push(`${what}[${i}] isn't a finite number`);
     });
   };
   layers.forEach((layer, l) => {
     const [inputs, outputs] = [sizes[l], sizes[l + 1]];
-    if (!isObject(layer)) return problems.push(`layer ${l} must be an object`);
+    if (!isObject(layer)) {
+      problems.push(`layer ${l} must be an object`);
+      return;
+    }
     if (!Array.isArray(layer.weights) || layer.weights.length !== outputs) {
       problems.push(`layer ${l} weights must be ${outputs} rows of ${inputs}`);
     } else {

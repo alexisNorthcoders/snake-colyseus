@@ -42,7 +42,7 @@ const allowed = (file: string, spec: string) => {
 };
 
 /** The .ts file, or JSON data such as a brain, that a relative `spec`, imported by the file at `from`, loads. */
-const resolveTs = (from: string, spec: string) => {
+const resolveImport = (from: string, spec: string) => {
   const base = resolve(dirname(from), spec);
   const file = [`${base}.ts`, join(base, "index.ts"), ...(base.endsWith(".json") ? [base] : [])].find(existsSync);
   assert.ok(file, `${relative(root, from)} imports "${spec}", which isn't a .ts or .json file`);
@@ -105,7 +105,7 @@ describe("bots boundary", () => {
       if (file === engineEntry || file.endsWith(".json")) return;
       specifiers(readFileSync(file, "utf8")).forEach((spec) => {
         assert.ok(spec.startsWith("."), `${relative(root, file)} imports "${spec}"`);
-        visit(resolveTs(file, spec));
+        visit(resolveImport(file, spec));
       });
     };
     visit(join(botsDir, "index.ts"));
