@@ -61,8 +61,7 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only: the running countdown's timer, cleared when it reaches 0.
   private countdownTimer?: { clear(): void };
 
-  // Server-only: which roster snake the bot is, and how it plays. Fixed at creation.
-  private botEntry?: RosterEntry;
+  // Server-only: how the bot plays, from its roster entry. Fixed at creation.
   private botDecider?: Decider;
 
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
@@ -138,7 +137,6 @@ export class SnakeRoom extends Room<GameState> {
    * never sit in a room that can still take humans.
    */
   private seatBot(entry: RosterEntry) {
-    this.botEntry = entry;
     this.botDecider = deciderFor(entry);
     // The colon can't appear in a session id, so this never collides with one.
     const id = `bot:${this.roomId}`;

@@ -135,8 +135,7 @@ describe("vs-bot room", () => {
   describe("choosing a bot", () => {
     it("plays the rookie without a botId, or with one the roster doesn't have", async () => {
       for (const extra of [{}, { botId: "nobody" }, { botId: 42 }]) {
-        const { room, state } = await vsBotRoom(extra);
-        assert.strictEqual(room.botEntry.id, "rookie");
+        const { state } = await vsBotRoom(extra);
         assert.strictEqual(state.players.find((p) => p.isBot)!.name, "Rookie");
       }
     });
@@ -145,7 +144,6 @@ describe("vs-bot room", () => {
       const { room, state, human, gameOvers, start } = await vsBotRoom({ botId: "dummy" });
       room.setSimulationInterval(null);
       const bot = state.players.find((p) => p.isBot)!;
-      assert.strictEqual(room.botEntry.id, "dummy");
       assert.strictEqual(bot.name, "Dummy");
       await start();
 

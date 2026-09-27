@@ -20,15 +20,15 @@ interface EntryMetadata {
   method: TrainingMethod;
 }
 
-/** A named opponent a vs-bot room can play against. */
-export type RosterEntry =
-  | (EntryMetadata & { kind: "scripted"; decider: Decider })
-  | (EntryMetadata & { kind: "brain"; encoderVersion: number; rulesVersion: number; brain: Brain });
-
 /** A roster entry without its brain or code: what `GET /roster` lists. */
 export type RosterListing =
   | (EntryMetadata & { kind: "scripted" })
   | (EntryMetadata & { kind: "brain"; encoderVersion: number; rulesVersion: number });
+
+/** A named opponent a vs-bot room can play against. */
+export type RosterEntry =
+  | (Extract<RosterListing, { kind: "scripted" }> & { decider: Decider })
+  | (Extract<RosterListing, { kind: "brain" }> & { brain: Brain });
 
 /** A brain entry as committed, before its brain is checked. */
 export type RosterSource = EntryMetadata & { brain: unknown };
@@ -44,7 +44,7 @@ const rookieEntry: RosterEntry = {
 
 /**
  * The roster's brains, as committed. Adding a snake means adding its brain
- * file under brains/ and an entry here, and nothing else.
+ * file under brains/ and an entry here that imports it, and nothing else.
  */
 export const rosterSources: RosterSource[] = [
   { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", brain: dummyBrain }
@@ -71,11 +71,11 @@ export function loadRoster(sources: RosterSource[] = rosterSources, log: RosterL
       log.error(`[roster] Skipped "${metadata.id}": its brain isn't valid: ${problems.join("; ")}`);
       return;
     }
-    const valid = brain as Brain;
-    if (valid.rulesVersion !== RULES_VERSION) {
-      log.warn(`[roster] "${metadata.id}" was made under rules v${valid.rulesVersion}, not v${RULES_VERSION}`);
+    const checked = brain as Brain;
+    if (checked.rulesVersion !== RULES_VERSION) {
+      log.warn(`[roster] "${metadata.id}" was made under rules v${checked.rulesVersion}, not v${RULES_VERSION}`);
     }
-    entries.push({ ...metadata, kind: "brain", encoderVersion: valid.encoderVersion, rulesVersion: valid.rulesVersion, brain: valid });
+    entries.push({ ...metadata, kind: "brain", encoderVersion: checked.encoderVersion, rulesVersion: checked.rulesVersion, brain: checked });
   });
   return entries;
 }
