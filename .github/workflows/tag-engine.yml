@@ -1,0 +1,37 @@
+name: Tag engine
+
+# Cuts engine-v<engineVersion> on master once a PR that bumps package.json's
+# engineVersion lands. Does nothing if that tag already exists.
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tag-engine
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag engine-v<engineVersion> if it's new
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").engineVersion')
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::package.json's engineVersion must be X.Y.Z; it's '$version'."
+            exit 1
+          fi
+          tag="engine-v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists; nothing to tag."
+            exit 0
+          fi
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"
+          echo "Tagged $GITHUB_SHA as $tag."

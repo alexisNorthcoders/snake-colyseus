@@ -1,0 +1,28 @@
+name: Engine version
+
+# Fails a PR that changes the engine's or bots' source without bumping
+# package.json's engineVersion. master isn't protected, so this doesn't block
+# a merge; it flags the missing bump in review.
+
+on:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Check engineVersion was bumped
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: npx tsx scripts/checkEngineBump.ts "origin/$BASE_REF"
