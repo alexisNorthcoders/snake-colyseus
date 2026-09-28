@@ -17,9 +17,9 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 A snake is two JSON files, and no code:
 
 - its brain, `src/bots/brains/<file>.json`, in the brain format (`Brain` in `src/bots/brain.ts`)
-- its entry, `src/bots/entries/<id>.json`: `{ "id", "name", "personality"?, "generation", "method", "brain": "<file>.json" }`, where `brain` names the file in `brains/`
+- its entry, `src/bots/entries/<file>.json`, by convention named after its id: `{ "id", "name", "personality"?, "generation", "method", "brain": "<file>.json" }`, where `brain` names the file in `brains/`
 
-`loadRoster` (`src/bots/roster.ts`) reads them at start-up, after the rookie and in the order of the entries' file names, and skips any it can't use with a logged error. `tsconfig.json` includes both folders, so the build ships them. It's a change under `src/bots/`, so bump `engineVersion` (below): a patch.
+`loadRoster` (`src/bots/roster.ts`) reads them at start-up, after the rookie and in the order of the entries' file names, and skips any it can't use with a logged error (fields it doesn't know only get a warning). `tsconfig.json` includes both folders, so the build ships them. It's a change under `src/bots/`, so bump `engineVersion` (below): a patch, as it adds no export.
 
 ## Tagging the engine and bots
 

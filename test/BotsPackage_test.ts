@@ -8,8 +8,8 @@ const root = join(__dirname, "..");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const tsconfig = JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"));
 
-/** Where tsc puts the compiled form of `src/<path>.ts`, or a copy of `src/<path>.json`. */
-const built = (path: string, ext: "js" | "d.ts" | "json") => `./${tsconfig.compilerOptions.outDir}/${path}.${ext}`;
+/** Where tsc puts the compiled form of `src/<path>.ts`. */
+const built = (path: string, ext: "js" | "d.ts") => `./${tsconfig.compilerOptions.outDir}/${path}.${ext}`;
 
 /**
  * Another repo installs the bots from a git tag, next to the engine, and
@@ -74,7 +74,7 @@ describe("bots package", () => {
         assert.ok(committed.length > 0, `nothing committed in ${folder}/`);
         committed.forEach((file) =>
           assert.deepStrictEqual(
-            JSON.parse(readFileSync(join(pkgDir, built(`bots/${folder}/${file.slice(0, -".json".length)}`, "json")), "utf8")),
+            JSON.parse(readFileSync(join(pkgDir, tsconfig.compilerOptions.outDir, "bots", folder, file), "utf8")),
             JSON.parse(readFileSync(join(root, "src/bots", folder, file), "utf8")),
             `the build's ${folder}/${file} isn't the committed one`
           )

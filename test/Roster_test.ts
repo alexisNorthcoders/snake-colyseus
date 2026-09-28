@@ -155,14 +155,21 @@ describe("the roster", () => {
       "b.json": "{ not json",
       "c.json": ["dummy"],
       "d.json": { ...dummyEntry, id: "", generation: -1 },
-      "e.json": { ...dummyEntry, id: "extra", colour: "green" },
-      "f.json": { ...dummyEntry, id: "fine" }
+      "e.json": { ...dummyEntry, id: "fine" }
     });
     assert.deepStrictEqual(ids, ["rookie", "fine"]);
-    assert.strictEqual(errors.length, 5);
-    ["a.json", "b.json", "c.json", "d.json", "e.json"].forEach((file, i) => assert.match(errors[i], new RegExp(file)));
+    assert.strictEqual(errors.length, 4);
+    ["a.json", "b.json", "c.json", "d.json"].forEach((file, i) => assert.match(errors[i], new RegExp(file)));
     assert.match(errors[0], /name/);
-    assert.match(errors[4], /colour/);
+  });
+
+  it("loads an entry with fields it doesn't know, with a warning, and leaves them out", () => {
+    const { ids, loaded, errors, warnings } = load({ "dummy.json": { ...dummyEntry, fitness: 0.9 } });
+    assert.deepStrictEqual(ids, ["rookie", "dummy"]);
+    assert.deepStrictEqual(errors, []);
+    assert.strictEqual(warnings.length, 1);
+    assert.match(warnings[0], /fitness/);
+    assert.ok(!("fitness" in loaded[1]));
   });
 
   it("skips an entry with an unknown method or personality, and still loads the others", () => {

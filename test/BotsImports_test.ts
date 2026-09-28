@@ -38,11 +38,12 @@ const isOwnFile = (from: string, spec: string) => {
 /** The roster reads its snakes from JSON files, with Node's own modules and nothing else from outside. */
 const rosterFile = "roster.ts";
 const rosterReaders = ["fs", "path"];
+const isRosterReader = (from: string, spec: string) => from === join(botsDir, rosterFile) && rosterReaders.includes(spec);
 
 /** Whether `spec`, imported by bots/`file`, is the engine's entry point, one of the bots' own files, or how the roster reads its files. */
 const allowed = (file: string, spec: string) => {
   const from = join(botsDir, file);
-  return isEngineEntry(from, spec) || isOwnFile(from, spec) || (file === rosterFile && rosterReaders.includes(spec));
+  return isEngineEntry(from, spec) || isOwnFile(from, spec) || isRosterReader(from, spec);
 };
 
 /** The .ts file, or JSON data such as a brain, that a relative `spec`, imported by the file at `from`, loads. */
@@ -108,7 +109,7 @@ describe("bots boundary", () => {
       // The engine's files are its own business, and JSON imports nothing.
       if (file === engineEntry || file.endsWith(".json")) return;
       specifiers(readFileSync(file, "utf8")).forEach((spec) => {
-        if (file === join(botsDir, rosterFile) && rosterReaders.includes(spec)) return;
+        if (isRosterReader(file, spec)) return;
         assert.ok(spec.startsWith("."), `${relative(root, file)} imports "${spec}"`);
         visit(resolveImport(file, spec));
       });

@@ -45,7 +45,8 @@ const activations: Record<Activation, (x: number) => number> = {
 
 const requiredFields = ["format", "formatVersion", "encoderVersion", "rulesVersion", "sizes", "activation", "layers"] as const;
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+/** Whether `value` is a plain object: not null, and not a list. */
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
