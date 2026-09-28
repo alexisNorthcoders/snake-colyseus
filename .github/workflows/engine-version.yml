@@ -13,8 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The PR's merge commit and its first parent, the base it merges into.
-          fetch-depth: 2
+          ref: ${{ github.event.pull_request.head.sha }}
+          # The whole history, so the diff can find where the PR left its base.
+          fetch-depth: 0
+
+      - name: Fetch the base branch
+        run: git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}"
 
       - uses: actions/setup-node@v4
         with:
@@ -24,4 +28,4 @@ jobs:
       - run: npm ci --ignore-scripts
 
       - name: Check engineVersion was bumped
-        run: npx tsx scripts/checkEngineBump.ts HEAD^1
+        run: npx tsx scripts/checkEngineBump.ts "${{ github.event.pull_request.base.sha }}"

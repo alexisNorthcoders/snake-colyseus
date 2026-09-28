@@ -38,6 +38,23 @@ describe("engineVersion bump check", () => {
     assert.equal(bumpProblem(["src/engine/tick.ts"], "3.9.0", "3.10.0"), null);
   });
 
+  it("passes a major, minor or patch step", () => {
+    assert.equal(bumpProblem(["src/engine/tick.ts"], "3.1.4", "4.0.0"), null);
+    assert.equal(bumpProblem(["src/engine/tick.ts"], "3.1.4", "3.2.0"), null);
+    assert.equal(bumpProblem(["src/engine/tick.ts"], "3.1.4", "3.1.5"), null);
+  });
+
+  it("fails when engineVersion jumped more than one step", () => {
+    const problem = bumpProblem(["src/engine/tick.ts"], "3.1.0", "9.0.0");
+    assert.match(problem, /jumped from 3\.1\.0 to 9\.0\.0/);
+    assert.match(problem, /4\.0\.0/);
+    assert.match(problem, /3\.2\.0/);
+    assert.match(problem, /3\.1\.1/);
+    assert.match(bumpProblem([], "3.1.0", "3.3.0"), /jumped/);
+    assert.match(bumpProblem([], "3.1.0", "3.2.1"), /jumped/);
+    assert.match(bumpProblem([], "3.1.0", "4.1.0"), /jumped/);
+  });
+
   it("passes when the base had no engineVersion yet", () => {
     assert.equal(bumpProblem(["src/engine/tick.ts"], undefined, "3.1.0"), null);
   });
