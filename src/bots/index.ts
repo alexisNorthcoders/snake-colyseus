@@ -26,5 +26,5 @@ export { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, brainDecider, brainProblems, forwar
 export { dummyBrain } from "./dummy";
 
 // The roster: the named opponents a vs-bot room can play.
-export type { Personality, RosterEntry, RosterListing, RosterLog, RosterSource, TrainingMethod } from "./roster";
-export { deciderFor, loadRoster, pickBot, roster, rosterListing, rosterSources } from "./roster";
+export type { Personality, RosterEntry, RosterListing, RosterLog, TrainingMethod } from "./roster";
+export { deciderFor, loadRoster, pickBot, roster, rosterListing } from "./roster";

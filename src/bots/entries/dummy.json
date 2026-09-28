@@ -1,0 +1,7 @@
+{
+  "id": "dummy",
+  "name": "Dummy",
+  "generation": 0,
+  "method": "hand-made",
+  "brain": "dummy.json"
+}

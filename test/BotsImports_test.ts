@@ -35,10 +35,14 @@ const isOwnFile = (from: string, spec: string) => {
   });
 };
 
-/** Whether `spec`, imported by bots/`file`, is the engine's entry point or one of the bots' own files. */
+/** The roster reads its snakes from JSON files, with Node's own modules and nothing else from outside. */
+const rosterFile = "roster.ts";
+const rosterReaders = ["fs", "path"];
+
+/** Whether `spec`, imported by bots/`file`, is the engine's entry point, one of the bots' own files, or how the roster reads its files. */
 const allowed = (file: string, spec: string) => {
   const from = join(botsDir, file);
-  return isEngineEntry(from, spec) || isOwnFile(from, spec);
+  return isEngineEntry(from, spec) || isOwnFile(from, spec) || (file === rosterFile && rosterReaders.includes(spec));
 };
 
 /** The .ts file, or JSON data such as a brain, that a relative `spec`, imported by the file at `from`, loads. */
@@ -104,6 +108,7 @@ describe("bots boundary", () => {
       // The engine's files are its own business, and JSON imports nothing.
       if (file === engineEntry || file.endsWith(".json")) return;
       specifiers(readFileSync(file, "utf8")).forEach((spec) => {
+        if (file === join(botsDir, rosterFile) && rosterReaders.includes(spec)) return;
         assert.ok(spec.startsWith("."), `${relative(root, file)} imports "${spec}"`);
         visit(resolveImport(file, spec));
       });
@@ -134,6 +139,9 @@ describe("bots boundary", () => {
     assert.ok(!allowed("view.ts", "colyseus"));
     assert.ok(!allowed("view.ts", "@colyseus/schema"));
     assert.ok(!allowed("view.ts", "fs"));
+    assert.ok(allowed("roster.ts", "fs"));
+    assert.ok(allowed("roster.ts", "path"));
+    assert.ok(!allowed("roster.ts", "http"));
   });
 
   it("is only ever reached through its entry point from outside it", () => {

@@ -16,6 +16,8 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src"
+    "src",
+    "src/bots/entries/*.json",
+    "src/bots/brains/*.json"
   ]
 }
