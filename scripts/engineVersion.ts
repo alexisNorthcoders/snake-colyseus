@@ -9,19 +9,32 @@ const shipped = ["src/engine/", "src/bots/"];
 
 const semver = /^(\d+)\.(\d+)\.(\d+)$/;
 
+/** A version's major, minor and patch numbers, or null if it isn't X.Y.Z. */
+const parse = (version: string | undefined) => semver.exec(version ?? "")?.slice(1).map(Number) ?? null;
+
+/** Whether version `a` comes after `b`. */
+const isAfter = (a: number[], b: number[]) => {
+  const i = a.findIndex((n, j) => n !== b[j]);
+  return i >= 0 && a[i] > b[i];
+};
+
 /**
  * Why a PR's `engineVersion` needs fixing, given the files it changed and the
  * field on its base and head, or null if it's fine.
  */
 export function bumpProblem(changedFiles: string[], baseVersion: string | undefined, headVersion: string | undefined) {
-  const parts = semver.exec(headVersion ?? "");
-  if (!parts) return `package.json's engineVersion must be X.Y.Z, e.g. "3.1.0"; it's ${JSON.stringify(headVersion)}.`;
-  if (headVersion !== baseVersion) return null;
+  const head = parse(headVersion);
+  if (!head) return `package.json's engineVersion must be X.Y.Z, e.g. "3.1.0"; it's ${JSON.stringify(headVersion)}.`;
+  const base = parse(baseVersion);
+  if (base && isAfter(base, head)) {
+    return `package.json's engineVersion must be higher than ${baseVersion}, the base branch's; it's ${headVersion}.`;
+  }
+  if (!base || isAfter(head, base)) return null;
 
   const changed = changedFiles.filter((file) => shipped.some((dir) => file.startsWith(dir)));
   if (changed.length === 0) return null;
 
-  const [major, minor, patch] = parts.slice(1).map(Number);
+  const [major, minor, patch] = head;
   return [
     `These engine or bots files changed, but package.json's engineVersion is still ${headVersion}:`,
     ...changed.map((file) => `  ${file}`),

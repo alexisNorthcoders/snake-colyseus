@@ -28,6 +28,16 @@ describe("engineVersion bump check", () => {
     assert.equal(bumpProblem(["src/engine/tick.ts"], "3.1.0", "3.1.1"), null);
   });
 
+  it("fails when engineVersion went down or sideways", () => {
+    assert.match(bumpProblem(["src/engine/tick.ts"], "3.1.0", "3.0.0"), /higher than 3\.1\.0/);
+    assert.match(bumpProblem([], "3.1.0", "3.0.9"), /higher than 3\.1\.0/);
+    assert.match(bumpProblem([], "3.1.0", "2.9.9"), /higher than 3\.1\.0/);
+  });
+
+  it("compares versions by number, not text", () => {
+    assert.equal(bumpProblem(["src/engine/tick.ts"], "3.9.0", "3.10.0"), null);
+  });
+
   it("passes when the base had no engineVersion yet", () => {
     assert.equal(bumpProblem(["src/engine/tick.ts"], undefined, "3.1.0"), null);
   });

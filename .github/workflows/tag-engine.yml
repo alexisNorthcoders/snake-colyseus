@@ -10,9 +10,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: tag-engine
-
 jobs:
   tag:
     runs-on: ubuntu-latest
@@ -28,10 +25,23 @@ jobs:
             exit 1
           fi
           tag="engine-v$version"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+          # Exit code 2 means no such tag; anything else nonzero is a real error.
+          exists() {
+            local code=0
+            git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || code=$?
+            [ "$code" -eq 0 ] && return 0
+            [ "$code" -eq 2 ] && return 1
+            echo "::error::Couldn't list the remote's tags (git ls-remote exited $code)."
+            exit 1
+          }
+          if exists; then
             echo "$tag already exists; nothing to tag."
             exit 0
           fi
           git tag "$tag" "$GITHUB_SHA"
-          git push origin "refs/tags/$tag"
+          # Another push's run may have cut the tag in the meantime.
+          if ! git push origin "refs/tags/$tag"; then
+            exists && { echo "$tag was cut by another run."; exit 0; }
+            exit 1
+          fi
           echo "Tagged $GITHUB_SHA as $tag."
