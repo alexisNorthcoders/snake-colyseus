@@ -12,6 +12,8 @@ import dummy from "./brains/dummy.json";
  * that's in danger, and lean towards the pellet: straight while it's ahead,
  * turning towards its side once it's level or behind.
  *
- * Its test holds it to being a valid brain; it isn't checked on import.
+ * Its roster entry is `entries/dummy.json`, and the roster reads both files
+ * itself: this is its brain file as it is, for tests and trainers to play
+ * against. Its test holds it to being a valid brain; it isn't checked on import.
  */
 export const dummyBrain = dummy as Brain;

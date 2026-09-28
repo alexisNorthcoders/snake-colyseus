@@ -1,6 +1,6 @@
 import assert from "assert";
 import { execFileSync } from "child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -50,7 +50,7 @@ describe("bots package", () => {
       assert.strictEqual(resolved, join(pkgDir, built("bots/index", "js")));
       assert.ok(existsSync(join(pkgDir, built("bots/index", "d.ts"))), "the build has no types for the bots");
       const exported = JSON.parse(run("console.log(JSON.stringify(Object.keys(require('snake-colyseus/bots'))))"));
-      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile", "encode", "ENCODER_VERSION", "ENCODER_SIZE", "BRAIN_FORMAT", "BRAIN_FORMAT_VERSION", "forward", "brainDecider", "brainProblems", "dummyBrain", "roster", "rosterSources", "loadRoster", "pickBot", "deciderFor", "rosterListing"].forEach((name) =>
+      ["Snapshots", "viewFor", "decide", "rookie", "rookieBotProfile", "encode", "ENCODER_VERSION", "ENCODER_SIZE", "BRAIN_FORMAT", "BRAIN_FORMAT_VERSION", "forward", "brainDecider", "brainProblems", "dummyBrain", "roster", "loadRoster", "pickBot", "deciderFor", "rosterListing"].forEach((name) =>
         assert.ok(exported.includes(name), `the built bots don't export ${name}`)
       );
     });
@@ -66,6 +66,28 @@ describe("bots package", () => {
         console.log(JSON.stringify(roster.map((entry) => [entry.id, deciderFor(entry)(view)])));
       `));
       assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"]]);
+    });
+
+    it("carries every roster entry and brain as JSON, and loads them without a word", () => {
+      (["entries", "brains"] as const).forEach((folder) => {
+        const committed = readdirSync(join(root, "src/bots", folder)).filter((file) => file.endsWith(".json"));
+        assert.ok(committed.length > 0, `nothing committed in ${folder}/`);
+        committed.forEach((file) =>
+          assert.deepStrictEqual(
+            JSON.parse(readFileSync(join(pkgDir, tsconfig.compilerOptions.outDir, "bots", folder, file), "utf8")),
+            JSON.parse(readFileSync(join(root, "src/bots", folder, file), "utf8")),
+            `the build's ${folder}/${file} isn't the committed one`
+          )
+        );
+      });
+      const logged = JSON.parse(run(`
+        const said = [];
+        const log = { error: (...args) => said.push(args.join(" ")), warn: (...args) => said.push(args.join(" ")) };
+        const { loadRoster } = require('snake-colyseus/bots');
+        const ids = loadRoster(undefined, log).map((entry) => entry.id);
+        console.log(JSON.stringify({ ids, said }));
+      `));
+      assert.deepStrictEqual(logged, { ids: ["rookie", "dummy"], said: [] });
     });
 
     it("doesn't load Colyseus when imported", () => {

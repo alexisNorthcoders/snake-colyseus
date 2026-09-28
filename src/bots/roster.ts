@@ -1,11 +1,28 @@
+/**
+ * The roster: the named opponents a vs-bot room can play. The rookie is in
+ * code; every other snake is data, read from JSON at start-up.
+ *
+ * Adding a snake takes two JSON files and no code:
+ * - its brain, `src/bots/brains/<file>.json`, a `Brain`
+ * - its entry, `src/bots/entries/<file>.json`, by convention named after its id:
+ *   `{ "id", "name", "personality"?, "generation", "method", "brain": "<file>.json" }`,
+ *   where `brain` names its file in `brains/`
+ *
+ * `tsconfig.json` includes both folders, so the build ships them.
+ */
+import { readFileSync, readdirSync } from "fs";
+import { join } from "path";
+
 import { RULES_VERSION } from "../engine";
-import { Brain, brainDecider, brainProblems } from "./brain";
-import { dummyBrain } from "./dummy";
+import { Brain, brainDecider, brainProblems, isObject } from "./brain";
 import { rookie, rookieBotProfile } from "./rookie";
 import { Decider } from "./view";
 
-export type Personality = "glutton" | "survivor" | "hunter";
-export type TrainingMethod = "scripted" | "hand-made" | "neuroevolution" | "ppo";
+const personalities = ["glutton", "survivor", "hunter"] as const;
+const methods = ["scripted", "hand-made", "neuroevolution", "ppo"] as const;
+
+export type Personality = (typeof personalities)[number];
+export type TrainingMethod = (typeof methods)[number];
 
 /** What every roster entry says about itself. */
 interface EntryMetadata {
@@ -30,9 +47,6 @@ export type RosterEntry =
   | (Extract<RosterListing, { kind: "scripted" }> & { decider: Decider })
   | (Extract<RosterListing, { kind: "brain" }> & { brain: Brain });
 
-/** A brain entry as committed, before its brain is checked. */
-export type RosterSource = EntryMetadata & { brain: unknown };
-
 const rookieEntry: RosterEntry = {
   id: "rookie",
   name: rookieBotProfile.name,
@@ -42,36 +56,96 @@ const rookieEntry: RosterEntry = {
   decider: rookie
 };
 
-/**
- * The roster's brains, as committed. Adding a snake means adding its brain
- * file under brains/ and an entry here that imports it, and nothing else.
- */
-export const rosterSources: RosterSource[] = [
-  { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", brain: dummyBrain }
-];
+/** Where the committed roster's JSON lives: `entries/` and `brains/` in the bots' folder. */
+const ROSTER_DIR = __dirname;
 
 /** Where loading reports a skipped entry or a warning. */
 export type RosterLog = Pick<Console, "error" | "warn">;
 
+/** A roster entry as committed: its metadata, and the name of its brain's file in `brains/`. */
+type EntryFile = EntryMetadata & { brain: string };
+
+const entryFields: Record<keyof EntryFile, true> = { id: true, name: true, personality: true, generation: true, method: true, brain: true };
+
+/** What's wrong with `value` as a roster entry file, or nothing if it's a valid one. Fields it doesn't know aren't counted. */
+function entryProblems(value: unknown): string[] {
+  if (!isObject(value)) return ["an entry must be an object"];
+  const problems: string[] = [];
+  const nonEmpty = (field: string) => {
+    if (typeof value[field] !== "string" || value[field] === "") problems.push(`${field} must be a string that isn't empty`);
+  };
+  nonEmpty("id");
+  nonEmpty("name");
+  if (value.personality !== undefined && !personalities.includes(value.personality as Personality)) {
+    problems.push(`personality ${JSON.stringify(value.personality)} isn't one of ${personalities.join(", ")}`);
+  }
+  if (!Number.isInteger(value.generation) || (value.generation as number) < 0) {
+    problems.push("generation must be a whole number, 0 or more");
+  }
+  if (!methods.includes(value.method as TrainingMethod)) {
+    problems.push(`method ${JSON.stringify(value.method)} isn't one of ${methods.join(", ")}`);
+  }
+  // A file in brains/ itself, never a path out of it.
+  if (typeof value.brain !== "string" || !/^[\w.-]+\.json$/.test(value.brain) || value.brain.startsWith(".")) {
+    problems.push("brain must name a .json file in brains/");
+  }
+  return problems;
+}
+
+/** The JSON in `path`, or why it can't be read. */
+function readJson(path: string): { json: unknown } | { problem: string } {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return { problem: `there's no file ${path}` };
+  }
+  try {
+    return { json: JSON.parse(text) };
+  } catch (error) {
+    return { problem: `${path} isn't JSON: ${(error as Error).message}` };
+  }
+}
+
 /**
- * The roster: the rookie, always first, then every source whose brain is
- * valid. A brain that isn't, or an id that's taken, is skipped with a logged
- * error; a brain made under other rules is loaded with a logged warning.
- * Never throws.
+ * The roster: the rookie, always first, then every snake in `dir`, in the
+ * order of its entry's file name. Never throws.
+ *
+ * An entry that can't be read (not JSON, a field missing, a personality or
+ * method that isn't known), one that names a brain file that isn't there or
+ * isn't a valid brain, or one whose id is taken, is skipped with a logged
+ * error. A brain made under other rules, or an entry with fields it doesn't
+ * know, is loaded with a logged warning, and those fields are left out.
  */
-export function loadRoster(sources: RosterSource[] = rosterSources, log: RosterLog = console): RosterEntry[] {
+export function loadRoster(dir: string = ROSTER_DIR, log: RosterLog = console): RosterEntry[] {
   const entries: RosterEntry[] = [rookieEntry];
-  sources.forEach(({ brain, ...metadata }) => {
-    if (entries.some((entry) => entry.id === metadata.id)) {
-      log.error(`[roster] Skipped "${metadata.id}": another entry has that id`);
-      return;
-    }
-    const problems = brainProblems(brain);
-    if (problems.length > 0) {
-      log.error(`[roster] Skipped "${metadata.id}": its brain isn't valid: ${problems.join("; ")}`);
-      return;
-    }
-    const checked = brain as Brain;
+  let files: string[];
+  try {
+    files = readdirSync(join(dir, "entries")).filter((file) => file.endsWith(".json")).sort();
+  } catch {
+    log.error(`[roster] Loaded only the rookie: there's no folder ${join(dir, "entries")}`);
+    return entries;
+  }
+
+  files.forEach((file) => {
+    const skipFile = (why: string) => log.error(`[roster] Skipped entries/${file}: ${why}`);
+    const read = readJson(join(dir, "entries", file));
+    if ("problem" in read) return skipFile(read.problem);
+    const problems = entryProblems(read.json);
+    if (problems.length > 0) return skipFile(`it isn't a valid entry: ${problems.join("; ")}`);
+    const unknownFields = Object.keys(read.json as object).filter((field) => !Object.hasOwn(entryFields, field));
+    if (unknownFields.length > 0) log.warn(`[roster] Ignored entries/${file}'s unknown fields: ${unknownFields.join(", ")}`);
+    const { id, name, personality, generation, method, brain: brainFile } = read.json as EntryFile;
+    const metadata: EntryMetadata = { id, name, ...(personality === undefined ? {} : { personality }), generation, method };
+
+    const skipEntry = (why: string) => skipFile(`"${metadata.id}" ${why}`);
+    if (entries.some((entry) => entry.id === metadata.id)) return skipEntry("has an id another entry has");
+    const brain = readJson(join(dir, "brains", brainFile));
+    if ("problem" in brain) return skipEntry(`names brain ${brainFile}, which can't be read: ${brain.problem}`);
+    const brainFileProblems = brainProblems(brain.json);
+    if (brainFileProblems.length > 0) return skipEntry(`has a brain, ${brainFile}, that isn't valid: ${brainFileProblems.join("; ")}`);
+
+    const checked = brain.json as Brain;
     if (checked.rulesVersion !== RULES_VERSION) {
       log.warn(`[roster] "${metadata.id}" was made under rules v${checked.rulesVersion}, not v${RULES_VERSION}`);
     }
