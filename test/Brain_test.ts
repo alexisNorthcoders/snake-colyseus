@@ -7,6 +7,8 @@ import {
   Brain,
   BotView,
   ENCODER_SIZE,
+  ENCODER_V2_SIZE,
+  ENCODER_V2_VERSION,
   ENCODER_VERSION,
   INPUT_LABELS,
   OUTPUT_LABELS,
@@ -173,6 +175,14 @@ describe("brain validation", () => {
     reports(flatBrain([ENCODER_SIZE + 1, 4, 3], [0, 0, 0]), /input/);
   });
 
+  it("accepts a v2 brain of encoder v2's size, and reports one of any other", () => {
+    const v2 = (size: number): Brain => ({ ...flatBrain([size, 4, 3], [0, 0, 0]), encoderVersion: ENCODER_V2_VERSION });
+    assert.deepStrictEqual(brainProblems(v2(ENCODER_V2_SIZE)), []);
+    reports(v2(ENCODER_SIZE), /input/);
+    reports(v2(ENCODER_V2_SIZE + 1), /input/);
+    reports({ ...flatBrain([ENCODER_V2_SIZE, 4, 3], [0, 0, 0]), encoderVersion: 3 }, /encoder version/);
+  });
+
   it("reports the wrong output size", () => {
     reports(flatBrain([ENCODER_SIZE, 4, 2], [0, 0]), /output/);
   });
@@ -220,6 +230,16 @@ describe("brain decider", () => {
       assert.strictEqual(decide([0, 1, 1], moved), turns[1]);
       assert.strictEqual(decide([1, 0, 1], moved), turns[0]);
     });
+  });
+
+  it("reads the view through encoder v2 for a v2 brain", () => {
+    // One weight, on the food channel's cell 2 ahead, pulling left.
+    const brain: Brain = { ...flatBrain([ENCODER_V2_SIZE, 3], [0, 0, 0]), encoderVersion: ENCODER_V2_VERSION };
+    brain.layers[0].weights[0][162 + 2 * 9 + 4] = 1;
+    const fed = view({ x: 1, y: 0 });
+    fed.food = [{ x: 7, y: 5, type: "chili", score: 50 }];
+    assert.strictEqual(brainDecider(brain)(view({ x: 1, y: 0 })), "r");
+    assert.strictEqual(brainDecider(brain)(fed), "u");
   });
 
   it("reads the view through the brain's encoder", () => {
