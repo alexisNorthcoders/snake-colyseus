@@ -2,6 +2,7 @@ import assert from "assert";
 import http from "http";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 
+import { logBotResultsConfig } from "../src/botResults";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
@@ -178,4 +179,33 @@ describe("vs-bot result reports", () => {
       assert.strictEqual(gameOvers.length, 1);
     });
   }
+
+  describe("start-up log", () => {
+    const logged = (secret: string | undefined) => {
+      const before = process.env.BOT_RESULTS_SECRET;
+      if (secret === undefined) delete process.env.BOT_RESULTS_SECRET;
+      else process.env.BOT_RESULTS_SECRET = secret;
+      const lines: unknown[][] = [];
+      const log = console.log;
+      console.log = (...args: unknown[]) => void lines.push(args);
+      try {
+        logBotResultsConfig();
+      } finally {
+        console.log = log;
+        if (before === undefined) delete process.env.BOT_RESULTS_SECRET;
+        else process.env.BOT_RESULTS_SECRET = before;
+      }
+      return lines;
+    };
+
+    it("logs once when the secret is missing", () => {
+      const lines = logged(undefined);
+      assert.strictEqual(lines.length, 1);
+      assert.match(String(lines[0][0]), /BOT_RESULTS_SECRET/);
+    });
+
+    it("logs nothing when the secret is set", () => {
+      assert.strictEqual(logged("s3cret").length, 0);
+    });
+  });
 });

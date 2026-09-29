@@ -28,15 +28,19 @@ export function logBotResultsConfig() {
 export function reportBotResult(result: BotResult): void {
   const token = secret();
   if (!token) return;
-  fetch(`${apiUrl().replace(/\/+$/, "")}/bot-results`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(result),
-    signal: AbortSignal.timeout(reportTimeoutMs)
-  }).then(
-    (response) => {
-      if (!response.ok) console.error(`[botResults] go-server answered ${response.status} for`, result);
-    },
-    (error) => console.error("[botResults] report failed for", result, error)
-  );
+  try {
+    fetch(`${apiUrl().replace(/\/+$/, "")}/bot-results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(result),
+      signal: AbortSignal.timeout(reportTimeoutMs)
+    }).then(
+      (response) => {
+        if (!response.ok) console.error(`[botResults] go-server answered ${response.status} for`, result);
+      },
+      (error) => console.error("[botResults] report failed for", result, error)
+    );
+  } catch (error) {
+    console.error("[botResults] report failed for", result, error);
+  }
 }
