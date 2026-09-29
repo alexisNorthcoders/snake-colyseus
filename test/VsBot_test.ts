@@ -4,8 +4,8 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { deciderFor, pickBot } from "../src/bots";
-import { directionMap } from "../src/engine";
+import { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, Brain, ENCODER_V2_SIZE, ENCODER_V2_VERSION, brainDecider, brainProblems, deciderFor, pickBot } from "../src/bots";
+import { RULES_VERSION, directionMap } from "../src/engine";
 import { joinOptions, wait } from "./helpers";
 
 const until = async (condition: () => boolean) => {
@@ -74,6 +74,28 @@ describe("vs-bot room", () => {
     assert.strictEqual(state.aliveCount, 1);
     const winner = state.players.find((p) => !p.snake.isDead)!;
     assert.strictEqual(gameOvers[0].winnerId, winner.id);
+  });
+
+  it("plays a full round with a small hand-made encoder v2 brain", async () => {
+    // No hidden layer: straight leads, and a live enemy's cell dead ahead (channel 2's cell 1 ahead) pushes it aside.
+    const weights = [new Array<number>(ENCODER_V2_SIZE).fill(0), new Array<number>(ENCODER_V2_SIZE).fill(0), new Array<number>(ENCODER_V2_SIZE).fill(0)];
+    weights[1][81 + 3 * 9 + 4] = -1;
+    const brain: Brain = {
+      format: BRAIN_FORMAT, formatVersion: BRAIN_FORMAT_VERSION, encoderVersion: ENCODER_V2_VERSION, rulesVersion: RULES_VERSION,
+      sizes: [ENCODER_V2_SIZE, 3], activation: "tanh", layers: [{ weights, biases: [0, 0.5, 0] }]
+    };
+    assert.deepStrictEqual(brainProblems(brain), []);
+    const { room, state, human, gameOvers, start } = await vsBotRoom();
+    room.botDecider = brainDecider(brain);
+    await start();
+    const bot = state.players.find((p) => p.isBot)!;
+    const { x, y } = bot.snake;
+    await until(() => bot.snake.x !== x || bot.snake.y !== y);
+    const me = state.players.find((p) => p.id === human.sessionId)!;
+    me.snake.setTail([{ x: me.snake.x + 1, y: me.snake.y }, { x: me.snake.x + 1, y: me.snake.y + 1 }, { x: me.snake.x, y: me.snake.y + 1 }]);
+    await until(() => state.phase === "ended");
+    assert.strictEqual(gameOvers.length, 1);
+    assert.strictEqual(gameOvers[0].rankings.length, 2);
   });
 
   it("crowns the bot when the human dies first", async () => {

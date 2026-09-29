@@ -18,6 +18,9 @@ export { decide, rookie, rookieBotProfile } from "./rookie";
 // Encoder v1: a view as the numbers a brain reads.
 export { ENCODER_SIZE, ENCODER_VERSION, INPUT_LABELS, encode } from "./encoder";
 
+// Encoder v2: a view as a window of the board round the head, and the mode.
+export { ENCODER_V2_SIZE, ENCODER_V2_VERSION, encodeV2 } from "./encoderV2";
+
 // Brains: trained snakes, saved as JSON, played as a `Decider`.
 export type { Activation, Brain } from "./brain";
 export { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, brainDecider, brainProblems, forward, layerValues, OUTPUT_LABELS } from "./brain";

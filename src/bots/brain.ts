@@ -1,5 +1,6 @@
 import { Direction, directionMap } from "../engine";
 import { ENCODER_SIZE, ENCODER_VERSION, encode } from "./encoder";
+import { ENCODER_V2_SIZE, ENCODER_V2_VERSION, encodeV2 } from "./encoderV2";
 import { BotView, Decider } from "./view";
 
 /** What marks a JSON file as a brain. */
@@ -37,7 +38,8 @@ const OUTPUTS = OUTPUT_LABELS.length;
 
 /** The encoders a brain can read its view through, by version. */
 const encoders: Record<number, { size: number; encode: (view: BotView) => number[] }> = {
-  [ENCODER_VERSION]: { size: ENCODER_SIZE, encode }
+  [ENCODER_VERSION]: { size: ENCODER_SIZE, encode },
+  [ENCODER_V2_VERSION]: { size: ENCODER_V2_SIZE, encode: encodeV2 }
 };
 
 const activations: Record<Activation, (x: number) => number> = {
