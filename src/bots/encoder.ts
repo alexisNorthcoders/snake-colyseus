@@ -40,6 +40,20 @@ export const ENCODER_VERSION = 1;
 /** How many numbers the encoder gives. */
 export const ENCODER_SIZE = 23;
 
+/**
+ * A short label for each of the encoder's features, in its order: the doc
+ * comment above says what each means, and a test holds the two to the same size.
+ */
+export const INPUT_LABELS: readonly string[] = [
+  "blocked left 1", "blocked left 2", "blocked left 3",
+  "blocked straight 1", "blocked straight 2", "blocked straight 3",
+  "blocked right 1", "blocked right 2", "blocked right 3",
+  "head-on left", "head-on straight", "head-on right",
+  "pellet ahead", "pellet right", "pellet score",
+  "enemy ahead", "enemy right", "enemy near",
+  "length", "endless mode", "time left", "hunger", "drains left"
+];
+
 const maxFoodScore = Math.max(...Object.values(foodScore));
 
 // Where each group of features starts in the output.

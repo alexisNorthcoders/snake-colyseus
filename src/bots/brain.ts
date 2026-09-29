@@ -29,8 +29,11 @@ export interface Brain {
   layers: { weights: number[][]; biases: number[] }[];
 }
 
+/** What a brain's outputs mean, in order. */
+export const OUTPUT_LABELS = ["left", "straight", "right"] as const;
+
 /** How many outputs a brain gives: left, straight and right. */
-const OUTPUTS = 3;
+const OUTPUTS = OUTPUT_LABELS.length;
 
 /** The encoders a brain can read its view through, by version. */
 const encoders: Record<number, { size: number; encode: (view: BotView) => number[] }> = {
@@ -117,17 +120,33 @@ export function brainProblems(value: unknown): string[] {
   return problems;
 }
 
-/** The brain's outputs for `input`: each hidden layer through its activation, the last left linear. */
-export function forward(brain: Brain, input: number[]): number[] {
+/**
+ * What every layer of the brain holds for `input`: the input itself first (not
+ * a copy), then each layer's values, the hidden ones after their activation
+ * and the last, the outputs, left linear.
+ */
+export function layerValues(brain: Brain, input: number[]): number[][] {
   const activate = activations[brain.activation];
-  return brain.layers.reduce((values, { weights, biases }, l) => {
-    const hidden = l < brain.layers.length - 1;
-    return weights.map((row, o) => {
+  const last = brain.layers.length - 1;
+  const all: number[][] = [input];
+  brain.layers.forEach(({ weights, biases }, l) => {
+    const values = all[l];
+    const next = new Array<number>(weights.length);
+    for (let o = 0; o < weights.length; o++) {
+      const row = weights[o];
       let sum = biases[o];
       for (let i = 0; i < row.length; i++) sum += row[i] * values[i];
-      return hidden ? activate(sum) : sum;
-    });
-  }, input);
+      next[o] = l < last ? activate(sum) : sum;
+    }
+    all.push(next);
+  });
+  return all;
+}
+
+/** The brain's outputs for `input`: the last of its `layerValues`. */
+export function forward(brain: Brain, input: number[]): number[] {
+  const all = layerValues(brain, input);
+  return all[all.length - 1];
 }
 
 const directions = Object.keys(directionMap) as Direction[];
