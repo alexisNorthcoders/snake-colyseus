@@ -2,6 +2,7 @@ import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
 import { BotView, Decider, RosterEntry, Snapshots, deciderFor, pickBot, viewFor } from "../bots";
 import { gameConfig } from "../gameConfig";
+import { BotOutcome, reportBotResult } from "../botResults";
 import {
   DiedEvent,
   Direction,
@@ -72,6 +73,12 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
   private botReactionTicks = defaultBotReactionTicks;
 
+  // Server-only: the roster id that actually plays in a vs-bot room (after any
+  // fallback to the rookie), and how many rounds have reached play. Rounds are
+  // reported to go-server only in a vs-bot room.
+  private botId?: string;
+  private roundCount = 0;
+
   // Server-only: every random choice the game rules make (not cosmetics like the background)
   // draws from `rng`, derived from `state.seed` at room creation, so the same seed lays out the same food.
   private rng!: Rng;
@@ -92,6 +99,7 @@ export class SnakeRoom extends Room<GameState> {
     this.countdownTimer?.clear();
     this.snapshots.clear();
     this.transition("playing");
+    this.roundCount++;
     beginPlay(this.state, roundTicks(this.ticksPerSecond));
   }
 
@@ -143,6 +151,7 @@ export class SnakeRoom extends Room<GameState> {
    */
   private seatBot(entry: RosterEntry) {
     this.botDecider = deciderFor(entry);
+    this.botId = entry.id;
     // The colon can't appear in a session id, so this never collides with one.
     const id = `bot:${this.roomId}`;
     const bot = new Player(id, entry.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
@@ -319,7 +328,8 @@ export class SnakeRoom extends Room<GameState> {
       // A leaver can be the one that leaves a single snake standing. Taken
       // out of the synced list first, so marking the snake dead never syncs.
       const result = removeFromPlay(this.state, player.snake);
-      if (result.roundOver) this.endRound(result);
+      // Whoever leaves mid-round loses to the bot, however the engine scores it.
+      if (result.roundOver) this.endRound(result, "win");
     }
   }
 
@@ -347,7 +357,7 @@ export class SnakeRoom extends Room<GameState> {
    * died says how, and into whom; the snakes alive at the end and anyone who
    * left mid-round have no cause.
    */
-  private endRound({ reason, winnerId }: { reason?: RoundEndReason; winnerId?: string }) {
+  private endRound({ reason, winnerId }: { reason?: RoundEndReason; winnerId?: string }, botOutcome?: BotOutcome) {
     const rankings = [
       ...this.state.players.map(p => ({ id: p.id, name: p.name, score: p.snake.score, ...this.roundDeaths.get(p.id) })),
       ...this.roundLeavers
@@ -362,5 +372,16 @@ export class SnakeRoom extends Room<GameState> {
     });
 
     this.transition("ended");
+
+    if (this.botId !== undefined) {
+      const botPlayer = this.state.players.find(p => p.isBot);
+      reportBotResult({
+        resultId: `${this.roomId}:${this.roundCount}`,
+        botId: this.botId,
+        mode: this.state.mode,
+        delay: this.botReactionTicks,
+        outcome: botOutcome ?? (winnerId === undefined ? "draw" : winnerId === botPlayer?.id ? "win" : "loss")
+      });
+    }
   }
 }

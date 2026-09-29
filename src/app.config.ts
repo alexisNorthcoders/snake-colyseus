@@ -8,9 +8,11 @@ import { playground } from "@colyseus/playground";
 import { SnakeRoom } from "./rooms/SnakeRoom";
 import { modeOf } from "./engine";
 import { rosterListing } from "./bots";
+import { logBotResultsConfig } from "./botResults";
 
 export default config({
     initializeGameServer: (gameServer) => {
+        logBotResultsConfig();
         /**
          * Define your room handlers:
          */
