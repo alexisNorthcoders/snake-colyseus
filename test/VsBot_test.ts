@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, Brain, ENCODER_V2_SIZE, ENCODER_V2_VERSION, brainDecider, brainProblems, deciderFor, pickBot } from "../src/bots";
+import { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, Brain, ENCODER_V2_SIZE, ENCODER_V2_VERSION, brainDecider, brainProblems, deciderFor, encodeV2, forward, pickBot } from "../src/bots";
 import { RULES_VERSION, directionMap } from "../src/engine";
 import { joinOptions, wait } from "./helpers";
 
@@ -86,8 +86,14 @@ describe("vs-bot room", () => {
     };
     assert.deepStrictEqual(brainProblems(brain), []);
     const { room, state, human, gameOvers, start } = await vsBotRoom();
-    room.botDecider = brainDecider(brain);
+    const decider = brainDecider(brain);
+    const views: any[] = [];
+    room.botDecider = (view: any) => {
+      views.push(view);
+      return decider(view);
+    };
     await start();
+    assert.strictEqual(state.phase, "playing");
     const bot = state.players.find((p) => p.isBot)!;
     const { x, y } = bot.snake;
     await until(() => bot.snake.x !== x || bot.snake.y !== y);
@@ -96,6 +102,16 @@ describe("vs-bot room", () => {
     await until(() => state.phase === "ended");
     assert.strictEqual(gameOvers.length, 1);
     assert.strictEqual(gameOvers[0].rankings.length, 2);
+    // The bot was asked every tick, and the brain reads each view through v2:
+    // 328 finite inputs into its 328-wide layer, three finite outputs out.
+    assert.ok(views.length > 0, "the bot never decided");
+    for (const view of views) {
+      const input = encodeV2(view);
+      assert.strictEqual(input.length, ENCODER_V2_SIZE);
+      const output = forward(brain, input);
+      assert.strictEqual(output.length, 3);
+      assert.ok(output.every(Number.isFinite));
+    }
   });
 
   it("crowns the bot when the human dies first", async () => {
