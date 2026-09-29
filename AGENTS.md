@@ -21,6 +21,13 @@ A snake is two JSON files, and no code:
 
 `loadRoster` (`src/bots/roster.ts`) reads them at start-up, after the rookie and in the order of the entries' file names, and skips any it can't use with a logged error (fields it doesn't know only get a warning). `tsconfig.json` includes both folders, so the build ships them. It's a change under `src/bots/`, so bump `engineVersion` (below): a patch, as it adds no export.
 
+## Reporting vs-bot rounds
+
+A private vs-bot room reports each round that reaches play to go-server: `POST <API_URL>/bot-results` with `Authorization: Bearer <BOT_RESULTS_SECRET>` and `{ resultId, botId, mode, delay, outcome }` (`outcome` from the bot's side: `win`, `loss` or `draw`; a human leaving mid-round is a bot win; leaving in the lobby or countdown reports nothing; public rooms never report). See `src/botResults.ts`.
+
+- `API_URL` defaults to `http://localhost:8080`. `BOT_RESULTS_SECRET` has no default: without it nothing is sent, and start-up logs that once. `ecosystem.config.cjs` passes both to production.
+- Fire and forget, 3 s timeout, no retries: a failure is logged with the result and dropped, and never affects the room.
+
 ## Tagging the engine and bots
 
 Other repos install the package from GitHub at a tag (`github:alexisNorthcoders/snake-colyseus#engine-vX.Y.Z`) and import `snake-colyseus/engine` and `snake-colyseus/bots`. npm's `prepare` hook builds both on install; `build/` is never committed. Both share the one `engine-vX.Y.Z` tag series.
