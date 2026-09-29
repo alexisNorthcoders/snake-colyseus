@@ -8,7 +8,12 @@ import {
   BotView,
   ENCODER_SIZE,
   ENCODER_VERSION,
+  INPUT_LABELS,
+  OUTPUT_LABELS,
   brainDecider,
+  dummyBrain,
+  encode,
+  layerValues,
   brainProblems,
   forward
 } from "../src/bots";
@@ -71,6 +76,39 @@ describe("brain forward pass", () => {
     // With no hidden layer, relu would clip these to 0 if it touched the output.
     const brain = { ...flatBrain([2, 2], [0, 0], "relu"), layers: [{ weights: [[1, 0], [0, -1]], biases: [-3, 0] }] };
     assert.deepStrictEqual(forward(brain, [1, 2]), [-2, -2]);
+  });
+});
+
+describe("brain layer values", () => {
+  it("holds the input, the hidden layer after its activation, and the linear outputs", () => {
+    // Sums of -3 and 1.5, as above.
+    const [input, hidden, out] = layerValues(tiny("tanh"), [1, 2]);
+    assert.deepStrictEqual(input, [1, 2]);
+    close(hidden[0], -0.9950547536867305);
+    close(hidden[1], 0.9051482536448664);
+    close(out[0], 2 * -0.9950547536867305 - 0.9051482536448664 + 0.5);
+    const relu = layerValues(tiny("relu"), [1, 2]);
+    assert.deepStrictEqual(relu, [[1, 2], [0, 1.5], [-1]]);
+    const sigmoid = layerValues(tiny("sigmoid"), [1, 2]);
+    close(sigmoid[1][0], 0.04742587317756678);
+    close(sigmoid[1][1], 0.8175744761936437);
+  });
+
+  it("ends in what forward gives, for Dummy on a few views", () => {
+    [{ x: 1, y: 0 }, { x: 0, y: -1 }, { x: -1, y: 0 }, { x: 0, y: 0 }].forEach((moved) => {
+      const input = encode(view(moved));
+      const all = layerValues(dummyBrain, input);
+      assert.strictEqual(all.length, dummyBrain.sizes.length);
+      assert.deepStrictEqual(all[all.length - 1], forward(dummyBrain, input));
+    });
+  });
+});
+
+describe("labels", () => {
+  it("names each of the encoder's inputs, differently, and the three outputs", () => {
+    assert.strictEqual(INPUT_LABELS.length, ENCODER_SIZE);
+    assert.strictEqual(new Set(INPUT_LABELS).size, ENCODER_SIZE);
+    assert.deepStrictEqual([...OUTPUT_LABELS], ["left", "straight", "right"]);
   });
 });
 
