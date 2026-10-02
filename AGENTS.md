@@ -41,3 +41,7 @@ The next tag's version is `engineVersion` in `package.json`. Bump it in your PR 
 Once the PR is merged, CI (`.github/workflows/tag-engine.yml`) tags that `master` commit `engine-v<engineVersion>`. If the tag already exists it does nothing, so a merge that doesn't bump it cuts no tag. On pull requests, `.github/workflows/engine-version.yml` fails if engine or bots files changed but `engineVersion` didn't, and says what to bump it to.
 
 Never tag by hand, and never tag a branch: CI owns the tags. See them at https://github.com/alexisNorthcoders/snake-colyseus/tags, or with `git fetch --tags && git tag --list 'engine-v*' --sort=-v:refname`.
+
+## Ranked matches
+
+The `ranked` room (`src/rooms/RankedRoom.ts`) is the Ranked queue: Accounts only (`onAuth` checks `options.token` with go-server's `/verify-token`), timed at the default speed, 2 seats, never started by a Start message. After `gameConfig.standInWaitMs` (20 s) with one Account seated, the rookie sits down as the Stand-in. At the end it reports to `POST <API_URL>/ranked-results` (same `BOT_RESULTS_SECRET`), retrying with backoff, then sends each client a `ratingUpdate` message with go-server's answer. See `src/rankedResults.ts`. It adds no export under `src/engine/` or `src/bots/`, so `engineVersion` stays.
