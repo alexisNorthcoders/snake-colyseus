@@ -6,13 +6,16 @@ import { playground } from "@colyseus/playground";
  * Import your Room files
  */
 import { SnakeRoom } from "./rooms/SnakeRoom";
+import { RankedRoom } from "./rooms/RankedRoom";
 import { modeOf } from "./engine";
 import { rosterListing } from "./bots";
 import { logBotResultsConfig } from "./botResults";
+import { logRankedResultsConfig } from "./rankedResults";
 
 export default config({
     initializeGameServer: (gameServer) => {
         logBotResultsConfig();
+        logRankedResultsConfig();
         /**
          * Define your room handlers:
          */
@@ -25,6 +28,8 @@ export default config({
         // every join alike: a modeless client only ever meets timed rooms.
         const filterOptions = snake.getFilterOptions.bind(snake);
         snake.getFilterOptions = (options) => ({ ...filterOptions(options), mode: modeOf(options?.mode) });
+        // The Ranked queue: always timed at the default speed, so nothing to filter by.
+        gameServer.define('ranked', RankedRoom);
     },
     initializeExpress: (app) => {
         /**

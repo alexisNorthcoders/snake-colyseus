@@ -43,7 +43,8 @@ export class SnakeRoom extends Room<GameState> {
     GAME_OVER: "gameOver",
     UPDATE_PLAYER: "updatePlayer",
     PING: "ping",
-    PONG: "pong"
+    PONG: "pong",
+    RATING_UPDATE: "ratingUpdate"
   };
 
   maxClients = 4;
@@ -83,6 +84,9 @@ export class SnakeRoom extends Room<GameState> {
   // draws from `rng`, derived from `state.seed` at room creation, so the same seed lays out the same food.
   private rng!: Rng;
 
+  // Whether a Start message begins the round. A ranked room never starts on a player's request.
+  protected startsOnRequest = true;
+
   // Server-only: where every snake was over the last few ticks, for the bot's reaction delay.
   // Made once `botReactionTicks` is known; cleared at each round start.
   private snapshots!: Snapshots;
@@ -104,7 +108,7 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   /** Lobby to countdown: locks the room, deals out spawns and starts the clock. Does nothing outside the lobby. */
-  private startCountdown() {
+  protected startCountdown() {
     if (!this.transition("countdown")) {
       // A countdown or round is already in progress or over (e.g. a
       // duplicate click before the gameStarted broadcast arrived, or a
@@ -121,6 +125,7 @@ export class SnakeRoom extends Room<GameState> {
     this.roundDeaths.clear();
 
     this.spawnOffset = dealRound(this.state, this.spawnOffset, newCoordinates);
+    this.roundDealt();
 
     console.log("[SnakeRoom] All snake positions initialized");
 
@@ -149,7 +154,7 @@ export class SnakeRoom extends Room<GameState> {
    * locked from creation: `spawnCells` tops out at 4 snakes, so a bot must
    * never sit in a room that can still take humans.
    */
-  private seatBot(entry: RosterEntry) {
+  protected seatBot(entry: RosterEntry) {
     this.botDecider = deciderFor(entry);
     this.botId = entry.id;
     // The colon can't appear in a session id, so this never collides with one.
@@ -243,7 +248,7 @@ export class SnakeRoom extends Room<GameState> {
 
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
-      this.startCountdown();
+      if (this.startsOnRequest) this.startCountdown();
     });
 
     this.onMessage(SnakeRoom.messageTypes.NEW_PLAYER, (client, message) => {
@@ -333,6 +338,12 @@ export class SnakeRoom extends Room<GameState> {
     }
   }
 
+  /** Hook: the round's snakes are dealt and the room is locked. A ranked room notes who plays. */
+  protected roundDealt() {}
+
+  /** Hook: the round just ended, with the engine's winner if it named one. A ranked room reports it. */
+  protected roundOver(winnerId?: string) {}
+
   /** One tick: the bots steer, then the engine runs the rules and says whether the round is over. */
   update() {
     if (!this.inRound) return;
@@ -383,5 +394,6 @@ export class SnakeRoom extends Room<GameState> {
         outcome: botOutcome ?? (winnerId === undefined ? "draw" : winnerId === botPlayer?.id ? "win" : "loss")
       });
     }
+    this.roundOver(winnerId);
   }
 }

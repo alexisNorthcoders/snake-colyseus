@@ -17,6 +17,8 @@ export const gameConfig = {
     // and the real time between counts; tests shorten both.
     countdownSeconds: 3,
     countdownTickMs: 1000,
+    // How long a lone Account waits in a Ranked room before a Stand-in sits down; tests shorten it.
+    standInWaitMs: 20000,
     roundSeconds: rulesConfig.roundSeconds,
     foodStorage: rulesConfig.foodStorage,
     backgroundColour: 'black',
