@@ -12,6 +12,7 @@ import {
   pickBot,
   roster,
   rosterListing,
+  standInFor,
   rookie
 } from "../src/bots";
 
@@ -66,7 +67,7 @@ describe("the roster", () => {
     const rookieEntry = roster.find((e) => e.id === "rookie")!;
     assert.deepStrictEqual(
       { ...rookieEntry, decider: undefined },
-      { id: "rookie", name: "Rookie", generation: 0, method: "scripted", kind: "scripted", decider: undefined }
+      { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted", decider: undefined }
     );
     const dummy = roster.find((e) => e.id === "dummy")!;
     assert.strictEqual(dummy.kind, "brain");
@@ -242,11 +243,57 @@ describe("the roster", () => {
     });
   });
 
+  describe("ratings", () => {
+    it("loads an entry's rating, and lists it", () => {
+      const { loaded, errors } = load({ "dummy.json": { ...dummyEntry, rating: 1400 } });
+      assert.deepStrictEqual(errors, []);
+      assert.strictEqual(loaded[1].rating, 1400);
+      assert.strictEqual(rosterListing(loaded)[1].rating, 1400);
+    });
+
+    it("skips an entry whose rating isn't a number from 0 to 4000", () => {
+      const { ids, errors } = load({ "a.json": { ...dummyEntry, id: "a", rating: "high" }, "b.json": { ...dummyEntry, id: "b", rating: -1 } });
+      assert.deepStrictEqual(ids, ["rookie"]);
+      assert.strictEqual(errors.length, 2);
+      assert.match(errors[0], /rating/);
+    });
+
+    it("leaves the committed Dummy unrated", () => {
+      assert.strictEqual(roster.find((e) => e.id === "dummy")!.rating, undefined);
+    });
+
+    describe("picking a Stand-in", () => {
+      const rated = load({
+        "a.json": { ...dummyEntry, id: "low", rating: 1300 },
+        "b.json": { ...dummyEntry, id: "high", rating: 1700 },
+        "c.json": { ...dummyEntry, id: "unrated" }
+      }).loaded;
+
+      it("is the rated entry closest to the Rating", () => {
+        assert.strictEqual(standInFor(1250, rated).id, "rookie");
+        assert.strictEqual(standInFor(1340, rated).id, "low");
+        assert.strictEqual(standInFor(1500, rated).id, "low");
+        assert.strictEqual(standInFor(1501, rated).id, "high");
+        assert.strictEqual(standInFor(3000, rated).id, "high");
+      });
+
+      it("never picks an unrated entry", () => {
+        const unrated = load({ "c.json": dummyEntry }).loaded;
+        assert.strictEqual(standInFor(1500, unrated).id, "rookie");
+        assert.notStrictEqual(standInFor(1500, rated).id, "unrated");
+      });
+
+      it("is the rookie when no trained bot is loaded", () => {
+        assert.strictEqual(standInFor(2500, [rated[0]]).id, "rookie");
+      });
+    });
+  });
+
   describe("its listing", () => {
     it("has every entry's metadata, and no weights or code", () => {
       const listing = rosterListing(roster);
       assert.deepStrictEqual(listing, [
-        { id: "rookie", name: "Rookie", generation: 0, method: "scripted", kind: "scripted" },
+        { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
         { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
       ]);
       // It survives JSON as it is.

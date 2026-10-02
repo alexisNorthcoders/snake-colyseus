@@ -4,6 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
 import { gameConfig } from "../src/gameConfig";
+import { dummyBrain, roster } from "../src/bots";
 import { rankedRetry } from "../src/rankedResults";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
@@ -19,6 +20,8 @@ describe("ranked room", () => {
   let colyseus: ColyseusTestServer;
   let fake: http.Server;
   let reports: { headers: http.IncomingHttpHeaders; body: any }[];
+  let ratingOf: (res: http.ServerResponse) => void;
+  let botReports: any[];
   let respond: (res: http.ServerResponse, body: any) => void;
   const saved = { ...gameConfig };
   const savedRetry = { ...rankedRetry };
@@ -46,6 +49,11 @@ describe("ranked room", () => {
           const verdict = verdicts[String(req.headers.authorization).replace("Bearer ", "")];
           return verdict ? res.writeHead(200).end(JSON.stringify(verdict)) : res.writeHead(401).end();
         }
+        if (req.url?.startsWith("/rating?")) return ratingOf(res);
+        if (req.url === "/bot-results") {
+          botReports.push(JSON.parse(raw));
+          return res.writeHead(200).end();
+        }
         if (req.url === "/ranked-results") {
           const body = JSON.parse(raw);
           reports.push({ headers: req.headers, body });
@@ -67,6 +75,8 @@ describe("ranked room", () => {
   beforeEach(async () => {
     await colyseus.cleanup();
     reports = [];
+    botReports = [];
+    ratingOf = (res) => res.writeHead(200).end(JSON.stringify({ userId: "u1", rating: 1500, rd: 200, rankedMatches: 9, provisional: false }));
     respond = (res, body) => res.writeHead(200).end(JSON.stringify(answer(body.a.accountId)));
     process.env.API_URL = `http://localhost:${(fake.address() as any).port}`;
     process.env.BOT_RESULTS_SECRET = "s3cret";
@@ -125,6 +135,60 @@ describe("ranked room", () => {
     assert.strictEqual(room.locked, true);
     assert.strictEqual(state.players.length, 2);
     assert.strictEqual(standIn().name, "Rookie");
+  });
+
+  describe("choosing the Stand-in", () => {
+    const rated = (id: string, rating: number) =>
+      ({ id, name: id, generation: 1, method: "hand-made", rating, kind: "brain", encoderVersion: 1, rulesVersion: 1, brain: dummyBrain }) as any;
+    const extras = [rated("weak", 1300), rated("strong", 1800), { ...rated("unrated", 1500), rating: undefined }];
+    beforeEach(() => roster.push(...extras));
+    afterEach(() => extras.forEach((e) => roster.splice(roster.indexOf(e), 1)));
+
+    const lookup = (rating: number) => (ratingOf = (res) => res.writeHead(200).end(JSON.stringify({ rating })));
+
+    it("seats the rated bot closest to the Account's Rating", async () => {
+      lookup(1700);
+      const { state, standIn } = await match();
+      await until(() => state.players.length === 2);
+      assert.strictEqual(standIn().name, "strong");
+    });
+
+    it("never seats an unrated bot", async () => {
+      lookup(1500);
+      const { state, standIn } = await match();
+      await until(() => state.players.length === 2);
+      assert.notStrictEqual(standIn().name, "unrated");
+      assert.strictEqual(standIn().name, "weak");
+    });
+
+    it("treats an Account go-server can't rate as 1500", async () => {
+      ratingOf = (res) => res.writeHead(500).end();
+      const { state, standIn } = await match();
+      await until(() => state.players.length === 2);
+      assert.strictEqual(standIn().name, "weak");
+    });
+
+    it("starts the match with the rookie when nothing else is rated", async () => {
+      extras.forEach((e) => roster.splice(roster.indexOf(e), 1));
+      lookup(1900);
+      const { state, standIn } = await match();
+      await until(() => state.players.length === 2);
+      assert.strictEqual(standIn().name, "Rookie");
+      roster.push(...extras);
+    });
+
+    it("reports the match to /ranked-results with the bot's Rating and to /bot-results", async () => {
+      lookup(1700);
+      const { room, state } = await match();
+      await until(() => state.phase === "playing");
+      room.endRound({ reason: "time-up" });
+      // Rooms left over from earlier tests may still report their forfeits.
+      const mine = <T extends { resultId: string }>(all: T[]) => all.filter((r) => r.resultId.startsWith(room.roomId));
+      await until(() => mine(reports.map((r) => r.body)).length === 1 && mine(botReports).length === 1);
+      assert.deepStrictEqual(mine(reports.map((r) => r.body))[0].b, { standInId: "strong", rating: 1800 });
+      assert.strictEqual(mine(botReports)[0].botId, "strong");
+      assert.strictEqual(mine(botReports)[0].outcome, "draw");
+    });
   });
 
   it("reports the engine's outcome with the Account and the Stand-in", async () => {

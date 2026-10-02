@@ -1,21 +1,22 @@
 import { Client, ServerError } from "@colyseus/core";
-import { pickBot } from "../bots";
+import { ROOKIE_RATING, standInFor } from "../bots";
 import { gameConfig } from "../gameConfig";
-import { RankedSide, reportRankedResult, verifyAccount } from "../rankedResults";
+import { DEFAULT_RATING, RankedSide, fetchRating, reportRankedResult, verifyAccount } from "../rankedResults";
 import { SnakeRoom } from "./SnakeRoom";
 
-/** The rookie's fixed Rating as a Stand-in: it only serves as the opponent's rating in the calculation. */
-export const ROOKIE_RATING = 1200;
-const STAND_IN_ID = "rookie";
+export { ROOKIE_RATING };
 
 /** Who sat in the match: a seated Account, or the Stand-in. */
 type Seat = { playerId: string; accountId?: string };
+
+/** The Stand-in that sat down: its roster id and fixed Rating. */
+type StandIn = { id: string; rating: number };
 
 /**
  * A Ranked match, and the queue for it: a timed 1v1 at the default speed
  * whatever the client asks for, open only to Accounts. It never starts on a
  * player's request: a lone Account who waits `gameConfig.standInWaitMs` plays
- * the rookie as a Stand-in, and the result goes to go-server.
+ * the rated bot closest to their Rating as a Stand-in, and the result goes to go-server.
  */
 export class RankedRoom extends SnakeRoom {
   maxClients = 2;
@@ -29,6 +30,9 @@ export class RankedRoom extends SnakeRoom {
 
   // Server-only: the session that left mid-match, if any.
   private forfeitedId?: string;
+
+  // Server-only: the Stand-in that sat down, if any.
+  private standIn?: StandIn;
 
   private standInTimer?: { clear(): void };
 
@@ -59,11 +63,21 @@ export class RankedRoom extends SnakeRoom {
     super.onLeave(client);
   }
 
-  /** The wait is up: if one Account is still alone, the room locks and the rookie sits down, then the countdown starts. */
-  private seatStandIn() {
+  /**
+   * The wait is up: if one Account is still alone, the room locks and the
+   * rated bot closest to its Rating sits down, then the countdown starts.
+   */
+  private async seatStandIn() {
     if (this.state.phase !== "lobby" || this.state.players.length !== 1) return;
+    // Locked first, so nobody joins while go-server is asked for the Rating.
     this.lock();
-    this.seatBot(pickBot(STAND_IN_ID));
+    const accountId = this.accounts.get(this.state.players[0].id);
+    const rating = accountId === undefined ? DEFAULT_RATING : await fetchRating(accountId);
+    // The Account may have left while go-server was asked.
+    if (this.state.phase !== "lobby" || this.state.players.length !== 1) return;
+    const entry = standInFor(rating);
+    this.standIn = { id: entry.id, rating: entry.rating ?? ROOKIE_RATING };
+    this.seatBot(entry);
     this.startCountdown();
   }
 
@@ -78,7 +92,7 @@ export class RankedRoom extends SnakeRoom {
     const side = (seat: Seat): RankedSide =>
       seat.accountId !== undefined
         ? { accountId: seat.accountId }
-        : { standInId: STAND_IN_ID, rating: ROOKIE_RATING };
+        : { standInId: this.standIn?.id ?? "rookie", rating: this.standIn?.rating ?? ROOKIE_RATING };
     // A leaver loses, whatever the engine scored; otherwise the engine's winner stands.
     const winner = this.forfeitedId !== undefined
       ? this.seats.find((seat) => seat.playerId !== this.forfeitedId)?.playerId

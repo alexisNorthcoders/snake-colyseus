@@ -63,6 +63,27 @@ export async function verifyAccount(token: unknown): Promise<string | undefined>
   }
 }
 
+/** The Rating an Account is treated as having when go-server can't say. */
+export const DEFAULT_RATING = 1500;
+
+/**
+ * Asks go-server for an Account's Rating. Falls back to `DEFAULT_RATING` if
+ * go-server is unreachable, slow or doesn't give a number: never throws.
+ */
+export async function fetchRating(accountId: string): Promise<number> {
+  try {
+    const response = await fetch(`${apiUrl()}/rating?userId=${encodeURIComponent(accountId)}`, {
+      signal: AbortSignal.timeout(requestTimeoutMs)
+    });
+    if (!response.ok) return DEFAULT_RATING;
+    const body: any = await response.json();
+    return typeof body?.rating === "number" && Number.isFinite(body.rating) ? body.rating : DEFAULT_RATING;
+  } catch (error) {
+    console.error("[rankedResults] rating lookup failed", error);
+    return DEFAULT_RATING;
+  }
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**

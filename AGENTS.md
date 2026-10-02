@@ -17,7 +17,7 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 A snake is two JSON files, and no code:
 
 - its brain, `src/bots/brains/<file>.json`, in the brain format (`Brain` in `src/bots/brain.ts`)
-- its entry, `src/bots/entries/<file>.json`, by convention named after its id: `{ "id", "name", "personality"?, "generation", "method", "brain": "<file>.json" }`, where `brain` names the file in `brains/`
+- its entry, `src/bots/entries/<file>.json`, by convention named after its id: `{ "id", "name", "personality"?, "generation", "method", "rating"?, "brain": "<file>.json" }`, where `brain` names the file in `brains/`. `rating` (0 to 4000) is set by hand when a bot is promoted: only rated entries can be Stand-ins, and the rookie is rated 1200 in code
 
 `loadRoster` (`src/bots/roster.ts`) reads them at start-up, after the rookie and in the order of the entries' file names, and skips any it can't use with a logged error (fields it doesn't know only get a warning). `tsconfig.json` includes both folders, so the build ships them. It's a change under `src/bots/`, so bump `engineVersion` (below): a patch, as it adds no export.
 
@@ -44,4 +44,4 @@ Never tag by hand, and never tag a branch: CI owns the tags. See them at https:/
 
 ## Ranked matches
 
-The `ranked` room (`src/rooms/RankedRoom.ts`) is the Ranked queue: Accounts only (`onAuth` checks `options.token` with go-server's `/verify-token`), timed at the default speed, 2 seats, never started by a Start message. After `gameConfig.standInWaitMs` (20 s) with one Account seated, the rookie sits down as the Stand-in. At the end it reports to `POST <API_URL>/ranked-results` (same `BOT_RESULTS_SECRET`), retrying with backoff, then sends each client a `ratingUpdate` message with go-server's answer. See `src/rankedResults.ts`. It adds no export under `src/engine/` or `src/bots/`, so `engineVersion` stays.
+The `ranked` room (`src/rooms/RankedRoom.ts`) is the Ranked queue: Accounts only (`onAuth` checks `options.token` with go-server's `/verify-token`), timed at the default speed, 2 seats, never started by a Start message. After `gameConfig.standInWaitMs` (20 s) with one Account seated, the rated roster bot closest to the Account's Rating (read from go-server's `/rating`; 1500 if unreachable) sits down as the Stand-in. Its round also reports to `/bot-results`. At the end it reports to `POST <API_URL>/ranked-results` (same `BOT_RESULTS_SECRET`), retrying with backoff, then sends each client a `ratingUpdate` message with go-server's answer. See `src/rankedResults.ts`. Its Stand-in choice (`standInFor`, `ROOKIE_RATING`) is a new export from `src/bots/`, so `engineVersion` got a minor bump.
