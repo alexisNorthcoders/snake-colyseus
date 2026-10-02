@@ -40,6 +40,8 @@ export class RankedRoom extends SnakeRoom {
   async onAuth(client: Client, options: any) {
     const accountId = await verifyAccount(options?.token);
     if (!accountId) throw new ServerError(401, "Ranked needs an account");
+    // Another tab or device of a seated Account: nobody plays themselves.
+    if ([...this.accounts.values()].includes(accountId)) throw new ServerError(409, "Already in this ranked match");
     return { accountId };
   }
 

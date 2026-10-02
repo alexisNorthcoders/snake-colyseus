@@ -24,10 +24,11 @@ describe("ranked room", () => {
   const savedRetry = { ...rankedRetry };
   const savedEnv = { API_URL: process.env.API_URL, BOT_RESULTS_SECRET: process.env.BOT_RESULTS_SECRET };
 
-  // Tokens go-server knows: "account-token" is u1, "other-token" is u2, "guest-token" a Guest.
+  // Tokens go-server knows: "account-token" is u1, "other-token" is u2, "account-token-3" is u3, "guest-token" a Guest.
   const verdicts: Record<string, object> = {
     "account-token": { kind: "account", userId: "u1" },
     "other-token": { kind: "account", userId: "u2" },
+    "account-token-3": { kind: "account", userId: "u3" },
     "guest-token": { kind: "guest", userId: "g1" }
   };
   const answer = (accountId: string) => ({
@@ -187,6 +188,68 @@ describe("ranked room", () => {
     await until(() => reports.length === 1);
     await wait(200);
     assert.strictEqual(reports.length, 1);
+  });
+
+  describe("two Accounts", () => {
+    async function pair() {
+      const first = await match();
+      const second = await join("other-token");
+      const updates2: any[] = [];
+      second.onMessage(SnakeRoom.messageTypes.RATING_UPDATE, (m) => updates2.push(m));
+      return { ...first, first: first.client, second, updates2 };
+    }
+
+    it("seats the second Account in the same room and starts the countdown on its own", async () => {
+      gameConfig.standInWaitMs = 100000;
+      gameConfig.countdownSeconds = 3;
+      const { first, second, state, room } = await pair();
+      assert.strictEqual(second.roomId, first.roomId);
+      await until(() => state.phase === "countdown");
+      assert.strictEqual(room.locked, true);
+      assert.strictEqual(state.players.filter((p) => p.isBot).length, 0);
+    });
+
+    it("seats no Stand-in after the wait once a second Account joined", async () => {
+      gameConfig.countdownSeconds = 3;
+      const { state } = await pair();
+      await wait(250);
+      assert.strictEqual(state.players.length, 2);
+      assert.strictEqual(state.players.filter((p) => p.isBot).length, 0);
+    });
+
+    it("gives a third Account a new room", async () => {
+      const { first } = await pair();
+      const third = await join("account-token-3");
+      assert.notStrictEqual(third.roomId, first.roomId);
+    });
+
+    it("refuses the same Account joining twice", async () => {
+      gameConfig.standInWaitMs = 100000;
+      const { state } = await match();
+      await assert.rejects(join("account-token"));
+      assert.strictEqual(state.players.length, 1);
+    });
+
+    it("reports both Accounts and sends both clients ratingUpdate", async () => {
+      const { state, room, updates, updates2 } = await pair();
+      await until(() => state.phase === "playing");
+      room.endRound({ winnerId: state.players[1].id });
+      await until(() => reports.length === 1);
+      const { body } = reports[0];
+      assert.deepStrictEqual([body.a.accountId, body.b.accountId].sort(), ["u1", "u2"]);
+      assert.strictEqual(body.forfeit, false);
+      await until(() => updates.length === 1 && updates2.length === 1);
+    });
+
+    it("reports either Account leaving mid-match as their Forfeit", async () => {
+      const { state, second } = await pair();
+      await until(() => state.phase === "playing");
+      await second.leave();
+      await until(() => reports.length === 1);
+      const { body } = reports[0];
+      assert.strictEqual(body.forfeit, true);
+      assert.strictEqual(body.outcome, body.a.accountId === "u1" ? "a" : "b");
+    });
   });
 
   it("leaves casual snake rooms as they were", async () => {
