@@ -30,4 +30,4 @@ export { dummyBrain } from "./dummy";
 
 // The roster: the named opponents a vs-bot room can play.
 export type { Personality, RosterEntry, RosterListing, RosterLog, TrainingMethod } from "./roster";
-export { deciderFor, loadRoster, pickBot, roster, rosterListing } from "./roster";
+export { ROOKIE_RATING, deciderFor, loadRoster, pickBot, roster, rosterListing, standInFor } from "./roster";

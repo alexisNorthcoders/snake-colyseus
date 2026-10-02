@@ -5,8 +5,9 @@
  * Adding a snake takes two JSON files and no code:
  * - its brain, `src/bots/brains/<file>.json`, a `Brain`
  * - its entry, `src/bots/entries/<file>.json`, by convention named after its id:
- *   `{ "id", "name", "personality"?, "generation", "method", "brain": "<file>.json" }`,
- *   where `brain` names its file in `brains/`
+ *   `{ "id", "name", "personality"?, "generation", "method", "rating"?, "brain": "<file>.json" }`,
+ *   where `brain` names its file in `brains/`. A `rating` is its fixed Rating as a
+ *   Stand-in, set by hand when it's promoted; without one it's never a Stand-in
  *
  * `tsconfig.json` includes both folders, so the build ships them.
  */
@@ -35,7 +36,12 @@ interface EntryMetadata {
   /** 0 for an entry that wasn't trained. */
   generation: number;
   method: TrainingMethod;
+  /** Its fixed Rating as a Stand-in; only an entry with one can be a Stand-in. */
+  rating?: number;
 }
+
+/** The rookie's fixed Rating as a Stand-in: it only serves as the opponent's rating in the calculation. */
+export const ROOKIE_RATING = 1200;
 
 /** A roster entry without its brain or code: what `GET /roster` lists. */
 export type RosterListing =
@@ -52,6 +58,7 @@ const rookieEntry: RosterEntry = {
   name: rookieBotProfile.name,
   generation: 0,
   method: "scripted",
+  rating: ROOKIE_RATING,
   kind: "scripted",
   decider: rookie
 };
@@ -65,7 +72,7 @@ export type RosterLog = Pick<Console, "error" | "warn">;
 /** A roster entry as committed: its metadata, and the name of its brain's file in `brains/`. */
 type EntryFile = EntryMetadata & { brain: string };
 
-const entryFields: Record<keyof EntryFile, true> = { id: true, name: true, personality: true, generation: true, method: true, brain: true };
+const entryFields: Record<keyof EntryFile, true> = { id: true, name: true, personality: true, generation: true, method: true, rating: true, brain: true };
 
 /** What's wrong with `value` as a roster entry file, or nothing if it's a valid one. Fields it doesn't know aren't counted. */
 function entryProblems(value: unknown): string[] {
@@ -84,6 +91,9 @@ function entryProblems(value: unknown): string[] {
   }
   if (!methods.includes(value.method as TrainingMethod)) {
     problems.push(`method ${JSON.stringify(value.method)} isn't one of ${methods.join(", ")}`);
+  }
+  if (value.rating !== undefined && (typeof value.rating !== "number" || !Number.isFinite(value.rating) || value.rating < 0 || value.rating > 4000)) {
+    problems.push("rating must be a number from 0 to 4000");
   }
   // A file in brains/ itself, never a path out of it.
   if (typeof value.brain !== "string" || !/^[\w.-]+\.json$/.test(value.brain) || value.brain.startsWith(".")) {
@@ -135,8 +145,8 @@ export function loadRoster(dir: string = ROSTER_DIR, log: RosterLog = console): 
     if (problems.length > 0) return skipFile(`it isn't a valid entry: ${problems.join("; ")}`);
     const unknownFields = Object.keys(read.json as object).filter((field) => !Object.hasOwn(entryFields, field));
     if (unknownFields.length > 0) log.warn(`[roster] Ignored entries/${file}'s unknown fields: ${unknownFields.join(", ")}`);
-    const { id, name, personality, generation, method, brain: brainFile } = read.json as EntryFile;
-    const metadata: EntryMetadata = { id, name, ...(personality === undefined ? {} : { personality }), generation, method };
+    const { id, name, personality, generation, method, rating, brain: brainFile } = read.json as EntryFile;
+    const metadata: EntryMetadata = { id, name, ...(personality === undefined ? {} : { personality }), generation, method, ...(rating === undefined ? {} : { rating }) };
 
     const skipEntry = (why: string) => skipFile(`"${metadata.id}" ${why}`);
     if (entries.some((entry) => entry.id === metadata.id)) return skipEntry("has an id another entry has");
@@ -160,6 +170,22 @@ export const roster = loadRoster();
 /** The entry with id `id`, or the rookie if there isn't one. */
 export function pickBot(id: unknown, from: RosterEntry[] = roster): RosterEntry {
   return from.find((entry) => entry.id === id) ?? rookieEntry;
+}
+
+/**
+ * The Stand-in for an Account rated `accountRating`: the rated entry whose
+ * Rating is closest to it, the earlier one on a tie. The rookie is rated, so
+ * there is always one.
+ */
+export function standInFor(accountRating: number, from: RosterEntry[] = roster): RosterEntry {
+  let best = rookieEntry;
+  let bestGap = Infinity;
+  from.forEach((entry) => {
+    if (entry.rating === undefined) return;
+    const gap = Math.abs(entry.rating - accountRating);
+    if (gap < bestGap) { best = entry; bestGap = gap; }
+  });
+  return best;
 }
 
 /** How `entry` plays. */

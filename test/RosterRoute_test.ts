@@ -15,7 +15,7 @@ describe("GET /roster", () => {
     assert.strictEqual(response.statusCode, 200);
     assert.match(String(response.headers["content-type"]), /application\/json/);
     assert.deepStrictEqual(response.data, [
-      { id: "rookie", name: "Rookie", generation: 0, method: "scripted", kind: "scripted" },
+      { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
       { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
     ]);
     assert.doesNotMatch(JSON.stringify(response.data), /weights|biases|layers/);
