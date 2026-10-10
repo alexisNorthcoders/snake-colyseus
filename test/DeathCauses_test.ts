@@ -25,7 +25,7 @@ describe("death causes in the rankings", () => {
 
   beforeEach(async () => await colyseus.cleanup());
 
-  /** A room with `n` players in the lobby and the simulation loop stopped. */
+  /** A room with `n` players in the lobby and the simulation loop stopped. `start` clears the pellets, so no snake scores by chance. */
   async function roomWith(n: number) {
     const room: any = await colyseus.createRoom<GameState>("snake", {});
     const clients = [];
@@ -44,6 +44,7 @@ describe("death causes in the rankings", () => {
     const start = async () => {
       clients[0].send(SnakeRoom.messageTypes.START_GAME);
       await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
+      room.state.foodCoordinates.clear();
     };
     const entry = (round: number, id: string) => gameOvers[round].rankings.find((r: any) => r.id === id);
     return { room, state: room.state as GameState, clients, gameOvers, start, entry };
