@@ -43,6 +43,12 @@ describe("tail ring", () => {
 
   beforeEach(async () => await colyseus.cleanup());
 
+  /** Pellets along the bottom row, off every snake's path. */
+  const parkPellets = (state: GameState) => state.foodCoordinates.forEach((food, i) => {
+    food.x = i;
+    food.y = BOTTOM_ROW;
+  });
+
   /** A started round of `players` snakes with the simulation loop stopped. */
   async function frozenRoom(players = 2) {
     const room: any = await colyseus.createRoom<GameState>("snake", {});
@@ -54,12 +60,8 @@ describe("tail ring", () => {
     await room.waitForMessage(SnakeRoom.messageTypes.START_GAME);
     room.setSimulationInterval(null);
 
-    // Pellets parked along the bottom row, off every snake's path.
     const state: GameState = room.state;
-    state.foodCoordinates.forEach((food, i) => {
-      food.x = i;
-      food.y = BOTTOM_ROW;
-    });
+    parkPellets(state);
 
     return { room, clients, state };
   }
@@ -119,6 +121,8 @@ describe("tail ring", () => {
     for (let t = 0; t < 30; t++) {
       const vacated = { x: snake.x, y: snake.y };
       const next = { x: (snake.x + 1) % SIZE, y: snake.y };
+      // An eaten pellet respawns anywhere, so park them all again before each tick.
+      parkPellets(state);
       if (eatOn.has(t)) {
         state.foodCoordinates[0].x = next.x;
         state.foodCoordinates[0].y = next.y;
