@@ -295,7 +295,7 @@ describe("the roster", () => {
       assert.deepStrictEqual(listing, [
         { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
         { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION },
-        { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
+        { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", rating: 1150, kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
       ]);
       // It survives JSON as it is.
       assert.deepStrictEqual(JSON.parse(JSON.stringify(listing)), listing);

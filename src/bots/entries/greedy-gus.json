@@ -4,5 +4,6 @@
   "personality": "glutton",
   "generation": 250,
   "method": "neuroevolution",
+  "rating": 1150,
   "brain": "greedy-gus.json"
 }
