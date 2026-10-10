@@ -89,7 +89,7 @@ describe("the roster", () => {
   it("loads the committed roster without a word", () => {
     const { errors, warnings, log } = recorder();
     const loaded = loadRoster(undefined, log);
-    assert.deepStrictEqual(loaded.map((e) => e.id), ["rookie", "dummy"]);
+    assert.deepStrictEqual(loaded.map((e) => e.id), ["rookie", "dummy", "greedy-gus"]);
     assert.deepStrictEqual(errors, []);
     assert.deepStrictEqual(warnings, []);
   });
@@ -294,7 +294,8 @@ describe("the roster", () => {
       const listing = rosterListing(roster);
       assert.deepStrictEqual(listing, [
         { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
-        { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
+        { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION },
+        { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
       ]);
       // It survives JSON as it is.
       assert.deepStrictEqual(JSON.parse(JSON.stringify(listing)), listing);

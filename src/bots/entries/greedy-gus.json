@@ -1,0 +1,8 @@
+{
+  "id": "greedy-gus",
+  "name": "Greedy Gus",
+  "personality": "glutton",
+  "generation": 250,
+  "method": "neuroevolution",
+  "brain": "greedy-gus.json"
+}
