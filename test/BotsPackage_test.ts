@@ -65,7 +65,7 @@ describe("bots package", () => {
         };
         console.log(JSON.stringify(roster.map((entry) => [entry.id, deciderFor(entry)(view)])));
       `));
-      assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"], ["greedy-gus", "r"]]);
+      assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"], ["greedy-gus", "r"], ["munch-max", "d"]]);
     });
 
     it("carries every roster entry and brain as JSON, and loads them without a word", () => {
@@ -87,7 +87,7 @@ describe("bots package", () => {
         const ids = loadRoster(undefined, log).map((entry) => entry.id);
         console.log(JSON.stringify({ ids, said }));
       `));
-      assert.deepStrictEqual(logged, { ids: ["rookie", "dummy", "greedy-gus"], said: [] });
+      assert.deepStrictEqual(logged, { ids: ["rookie", "dummy", "greedy-gus", "munch-max"], said: [] });
     });
 
     it("doesn't load Colyseus when imported", () => {

@@ -1,0 +1,9 @@
+{
+  "id": "munch-max",
+  "name": "Munch Max",
+  "personality": "glutton",
+  "generation": 507,
+  "method": "ppo",
+  "rating": 1250,
+  "brain": "munch-max.json"
+}

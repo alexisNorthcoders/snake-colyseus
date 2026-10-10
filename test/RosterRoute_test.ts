@@ -17,7 +17,8 @@ describe("GET /roster", () => {
     assert.deepStrictEqual(response.data, [
       { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
       { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION },
-      { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", rating: 1150, kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION }
+      { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", rating: 1150, kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION },
+      { id: "munch-max", name: "Munch Max", personality: "glutton", generation: 507, method: "ppo", rating: 1250, kind: "brain", encoderVersion: 2, rulesVersion: RULES_VERSION }
     ]);
     assert.doesNotMatch(JSON.stringify(response.data), /weights|biases|layers/);
   });
