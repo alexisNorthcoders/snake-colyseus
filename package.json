@@ -2,7 +2,7 @@
   "private": true,
   "name": "snake-colyseus",
   "version": "1.0.0",
-  "engineVersion": "4.3.1",
+  "engineVersion": "4.3.2",
   "description": "Snake on Colyseus: the game server, and its rules engine and bots as an installable package",
   "main": "build/index.js",
   "exports": {

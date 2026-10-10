@@ -26,6 +26,14 @@ describe("ranked room", () => {
   const saved = { ...gameConfig };
   const savedRetry = { ...rankedRetry };
   const savedEnv = { API_URL: process.env.API_URL, BOT_RESULTS_SECRET: process.env.BOT_RESULTS_SECRET };
+  // These tests choose Stand-ins from a roster where only the rookie is rated, whatever bots are committed.
+  const savedRoster = [...roster];
+  before(() => roster.splice(0, roster.length, ...savedRoster.filter((e) => e.id === "rookie" || e.rating === undefined)));
+  after(() => roster.splice(0, roster.length, ...savedRoster));
+  const drop = (e: unknown) => {
+    const i = roster.indexOf(e as (typeof roster)[number]);
+    if (i >= 0) roster.splice(i, 1);
+  };
 
   // Tokens go-server knows: "account-token" is u1, "other-token" is u2, "account-token-3" is u3, "guest-token" a Guest.
   const verdicts: Record<string, object> = {
@@ -142,7 +150,7 @@ describe("ranked room", () => {
       ({ id, name: id, generation: 1, method: "hand-made", rating, kind: "brain", encoderVersion: 1, rulesVersion: 1, brain: dummyBrain }) as any;
     const extras = [rated("weak", 1300), rated("strong", 1800), { ...rated("unrated", 1500), rating: undefined }];
     beforeEach(() => roster.push(...extras));
-    afterEach(() => extras.forEach((e) => roster.splice(roster.indexOf(e), 1)));
+    afterEach(() => extras.forEach(drop));
 
     const lookup = (rating: number) => (ratingOf = (res) => res.writeHead(200).end(JSON.stringify({ rating })));
 
@@ -169,7 +177,7 @@ describe("ranked room", () => {
     });
 
     it("starts the match with the rookie when nothing else is rated", async () => {
-      extras.forEach((e) => roster.splice(roster.indexOf(e), 1));
+      extras.forEach(drop);
       lookup(1900);
       const { state, standIn } = await match();
       await until(() => state.players.length === 2);
