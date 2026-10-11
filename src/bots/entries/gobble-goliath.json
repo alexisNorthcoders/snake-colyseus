@@ -1,0 +1,9 @@
+{
+  "id": "gobble-goliath",
+  "name": "Gobble Goliath",
+  "personality": "glutton",
+  "generation": 1407,
+  "method": "ppo",
+  "rating": 1350,
+  "brain": "gobble-goliath.json"
+}

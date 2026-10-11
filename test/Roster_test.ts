@@ -90,7 +90,7 @@ describe("the roster", () => {
   it("loads the committed roster, warning only about the bots trained under older rules", () => {
     const { errors, warnings, log } = recorder();
     const loaded = loadRoster(undefined, log);
-    assert.deepStrictEqual(loaded.map((e) => e.id), ["rookie", "dummy", "greedy-gus", "munch-max"]);
+    assert.deepStrictEqual(loaded.map((e) => e.id), ["rookie", "dummy", "gobble-goliath", "greedy-gus", "munch-max"]);
     assert.deepStrictEqual(errors, []);
     assert.deepStrictEqual(warnings, [
       `[roster] "greedy-gus" was made under rules v2, not v${RULES_VERSION}`,
@@ -299,6 +299,7 @@ describe("the roster", () => {
       assert.deepStrictEqual(listing, [
         { id: "rookie", name: "Rookie", generation: 0, method: "scripted", rating: 1200, kind: "scripted" },
         { id: "dummy", name: "Dummy", generation: 0, method: "hand-made", kind: "brain", encoderVersion: 1, rulesVersion: RULES_VERSION },
+        { id: "gobble-goliath", name: "Gobble Goliath", personality: "glutton", generation: 1407, method: "ppo", rating: 1350, kind: "brain", encoderVersion: 2, rulesVersion: RULES_VERSION },
         { id: "greedy-gus", name: "Greedy Gus", personality: "glutton", generation: 250, method: "neuroevolution", rating: 1150, kind: "brain", encoderVersion: 1, rulesVersion: 2 },
         { id: "munch-max", name: "Munch Max", personality: "glutton", generation: 507, method: "ppo", rating: 1250, kind: "brain", encoderVersion: 2, rulesVersion: 2 }
       ]);

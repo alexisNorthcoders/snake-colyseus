@@ -65,7 +65,7 @@ describe("bots package", () => {
         };
         console.log(JSON.stringify(roster.map((entry) => [entry.id, deciderFor(entry)(view)])));
       `));
-      assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"], ["greedy-gus", "r"], ["munch-max", "d"]]);
+      assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"], ["gobble-goliath", "d"], ["greedy-gus", "r"], ["munch-max", "d"]]);
     });
 
     it("carries every roster entry and brain as JSON, and loads them with no word but the rules warnings", () => {
@@ -87,7 +87,7 @@ describe("bots package", () => {
         const ids = loadRoster(undefined, log).map((entry) => entry.id);
         console.log(JSON.stringify({ ids, said }));
       `));
-      assert.deepStrictEqual(logged.ids, ["rookie", "dummy", "greedy-gus", "munch-max"]);
+      assert.deepStrictEqual(logged.ids, ["rookie", "dummy", "gobble-goliath", "greedy-gus", "munch-max"]);
       assert.deepStrictEqual(logged.said.map((line: string) => line.replace(/ not v\d+$/, "")), [
         "[roster] \"greedy-gus\" was made under rules v2,",
         "[roster] \"munch-max\" was made under rules v2,"
