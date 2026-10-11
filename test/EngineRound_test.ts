@@ -179,8 +179,9 @@ describe("headless round and replay", () => {
     const states = playRound(7);
     const last = states[states.length - 1];
 
-    assert.ok(last.aliveCount <= 1);
-    assert.ok(last.players.every((p) => p.snake.isDead));
+    // a eats a pellet on the way, so it's the longer one when they meet.
+    assert.strictEqual(last.aliveCount, 1);
+    assert.deepStrictEqual(last.players.map((p) => [p.id, p.snake.size, p.snake.isDead]), [["a", 2, false], ["b", 1, true]]);
   });
 
   it("replays identically, tick for tick, from the same seed and turns", () => {
@@ -194,6 +195,6 @@ describe("headless round and replay", () => {
 
 describe("RULES_VERSION", () => {
   it("is exported", () => {
-    assert.strictEqual(RULES_VERSION, 2);
+    assert.strictEqual(RULES_VERSION, 3);
   });
 });

@@ -16,8 +16,12 @@ const directions = Object.keys(directionMap) as Direction[];
 
 /**
  * Hunts the best `score / distance` pellet in view, never steps onto a live
- * body or next to a live enemy head (a head-on kills both snakes), and with
- * nothing in view keeps straight. Pure and deterministic: no RNG.
+ * body or next to a live enemy head, and with nothing in view keeps straight.
+ * Pure and deterministic: no RNG.
+ *
+ * It shies from every head, even a shorter one it would beat head-on: it's
+ * the fixed opponent snake-lab's gauntlet bar is measured against, so it
+ * keeps the play it had before a head-on went to the longer snake.
  */
 export function decide(view: BotView, profile: BotProfile): Direction {
   const { head, movedDirection: moved } = view.self;

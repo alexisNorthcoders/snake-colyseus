@@ -68,7 +68,7 @@ describe("bots package", () => {
       assert.deepStrictEqual(played, [["rookie", "r"], ["dummy", "r"], ["greedy-gus", "r"], ["munch-max", "d"]]);
     });
 
-    it("carries every roster entry and brain as JSON, and loads them without a word", () => {
+    it("carries every roster entry and brain as JSON, and loads them with no word but the rules warnings", () => {
       (["entries", "brains"] as const).forEach((folder) => {
         const committed = readdirSync(join(root, "src/bots", folder)).filter((file) => file.endsWith(".json"));
         assert.ok(committed.length > 0, `nothing committed in ${folder}/`);
@@ -87,7 +87,11 @@ describe("bots package", () => {
         const ids = loadRoster(undefined, log).map((entry) => entry.id);
         console.log(JSON.stringify({ ids, said }));
       `));
-      assert.deepStrictEqual(logged, { ids: ["rookie", "dummy", "greedy-gus", "munch-max"], said: [] });
+      assert.deepStrictEqual(logged.ids, ["rookie", "dummy", "greedy-gus", "munch-max"]);
+      assert.deepStrictEqual(logged.said.map((line: string) => line.replace(/ not v\d+$/, "")), [
+        "[roster] \"greedy-gus\" was made under rules v2,",
+        "[roster] \"munch-max\" was made under rules v2,"
+      ]);
     });
 
     it("doesn't load Colyseus when imported", () => {
