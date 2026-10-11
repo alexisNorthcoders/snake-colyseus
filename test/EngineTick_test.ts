@@ -103,6 +103,107 @@ describe("engine tick", () => {
     ]);
   });
 
+  describe("a head-on between snakes of different lengths", () => {
+    it("is won by the longer snake, which carries on", () => {
+      const game = plainGame([
+        plainPlayer("a", { x: 4, y: 5 }, right, [{ x: 3, y: 5 }]),
+        plainPlayer("b", { x: 6, y: 5 }, left),
+        plainPlayer("c", { x: 10, y: 10 }, down)
+      ]);
+
+      const report = run(game);
+
+      assert.deepStrictEqual(report.events, [{ kind: "died", player: "b", cause: "head-on", by: "a" }]);
+      const [a] = game.players.map((p) => p.snake);
+      assert.strictEqual(a.isDead, false);
+      assert.deepStrictEqual({ x: a.x, y: a.y }, { x: 5, y: 5 });
+    });
+
+    it("is won by the longer snake when their heads swap, though the loser's body follows onto its cell", () => {
+      // b's tail follows it onto (6, 5), where a lands.
+      const game = plainGame([
+        plainPlayer("a", { x: 5, y: 5 }, right, [{ x: 4, y: 5 }, { x: 3, y: 5 }]),
+        plainPlayer("b", { x: 6, y: 5 }, left, [{ x: 7, y: 5 }]),
+        plainPlayer("c", { x: 10, y: 10 }, down)
+      ]);
+
+      const report = run(game);
+
+      assert.deepStrictEqual(report.events, [{ kind: "died", player: "b", cause: "head-on", by: "a" }]);
+      assert.strictEqual(game.players[0].snake.isDead, false);
+    });
+
+    it("still kills the winner on a third snake's body", () => {
+      // a beats b on (5, 5), which c's body also covers.
+      const game = plainGame([
+        plainPlayer("c", { x: 6, y: 3 }, right, [{ x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 5, y: 6 }]),
+        plainPlayer("a", { x: 4, y: 5 }, right, [{ x: 3, y: 5 }]),
+        plainPlayer("b", { x: 6, y: 5 }, left),
+        plainPlayer("d", { x: 10, y: 10 }, down)
+      ]);
+
+      const report = run(game);
+
+      assert.deepStrictEqual(report.events, [
+        { kind: "died", player: "a", cause: "body", by: "c" },
+        { kind: "died", player: "b", cause: "head-on", by: "a" }
+      ]);
+    });
+
+    it("leaves only the longest of three heads on a cell, naming it as by", () => {
+      const game = plainGame([
+        plainPlayer("a", { x: 4, y: 5 }, right),
+        plainPlayer("b", { x: 6, y: 5 }, left, [{ x: 7, y: 5 }]),
+        plainPlayer("c", { x: 5, y: 4 }, down),
+        plainPlayer("d", { x: 10, y: 10 }, down)
+      ]);
+
+      const report = run(game);
+
+      assert.deepStrictEqual(report.events, [
+        { kind: "died", player: "a", cause: "head-on", by: "b" },
+        { kind: "died", player: "c", cause: "head-on", by: "b" }
+      ]);
+      assert.strictEqual(game.players[1].snake.isDead, false);
+    });
+
+    it("kills all three when the longest two tie", () => {
+      const game = plainGame([
+        plainPlayer("a", { x: 4, y: 5 }, right, [{ x: 3, y: 5 }]),
+        plainPlayer("b", { x: 6, y: 5 }, left, [{ x: 7, y: 5 }]),
+        plainPlayer("c", { x: 5, y: 4 }, down),
+        plainPlayer("d", { x: 10, y: 10 }, down)
+      ]);
+
+      const report = run(game);
+
+      assert.deepStrictEqual(report.events, [
+        { kind: "died", player: "a", cause: "head-on", by: "b" },
+        { kind: "died", player: "b", cause: "head-on", by: "a" },
+        { kind: "died", player: "c", cause: "head-on", by: "a" }
+      ]);
+    });
+
+    it("is judged on the lengths before the tick's meals", () => {
+      // A pellet waits on the cell they meet on: the winner eats it after winning,
+      // and it never breaks a tie.
+      const pellet = (x: number, y: number) => [{ x, y, index: 0, type: "redApple" }];
+      const won = plainGame([
+        plainPlayer("a", { x: 4, y: 5 }, right, [{ x: 3, y: 5 }]),
+        plainPlayer("b", { x: 6, y: 5 }, left),
+        plainPlayer("c", { x: 10, y: 10 }, down)
+      ], pellet(5, 5));
+      assert.deepStrictEqual(run(won).events.map((e) => [e.kind, e.player]), [["ate", "a"], ["died", "b"]]);
+      assert.strictEqual(won.players[0].snake.size, 3);
+
+      const tied = plainGame([
+        plainPlayer("a", { x: 4, y: 5 }, right),
+        plainPlayer("b", { x: 6, y: 5 }, left)
+      ], pellet(5, 5));
+      assert.deepStrictEqual(run(tied).events.map((e) => [e.kind, e.player]), [["died", "a"], ["died", "b"]]);
+    });
+  });
+
   it("kills a snake that runs into a body", () => {
     // b's body lies across a's path and, after b moves, still covers (5, 5).
     const game = plainGame([
@@ -261,7 +362,7 @@ describe("engine tick events", () => {
   it("calls a swap head-on even when a body covers the cell too", () => {
     // a and b swap cells, and b's tail follows it onto (6, 5), where a lands.
     const game = plainGame([
-      plainPlayer("a", { x: 5, y: 5 }, right),
+      plainPlayer("a", { x: 5, y: 5 }, right, [{ x: 4, y: 5 }]),
       plainPlayer("b", { x: 6, y: 5 }, left, [{ x: 7, y: 5 }]),
       plainPlayer("c", { x: 10, y: 10 }, down)
     ]);

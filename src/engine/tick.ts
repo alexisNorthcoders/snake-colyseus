@@ -316,8 +316,14 @@ interface Death<P> {
  * and to this tick, that crashed, and how: `head-on` when the head landed on
  * another head or swapped cells with one — two tailless snakes side by side
  * would otherwise cross without ever sharing a cell — else `body` when it
- * landed on another snake's body, else `self` on its own. Where more than one
- * other snake qualifies, `by` is the first in player order. Every occupied
+ * landed on another snake's body, else `self` on its own.
+ *
+ * A head-on is won by the longest snake in it, by `size` before this tick's
+ * meals: it carries on, and can't then die on the bodies of those it beat.
+ * Everyone else in it dies, and with a tie for longest nobody survives.
+ *
+ * A head-on's `by` is the longest of the others, the first in player order
+ * breaking a tie; a body's is the first in player order. Every occupied
  * cell is counted once up front, so the cost follows the total number of
  * segments rather than players squared.
  *
@@ -326,7 +332,7 @@ interface Death<P> {
  */
 const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; to: string }>) => {
     // Each cell's snakes, in player order since `moves` is walked in it. A
-    // head-on merges two of these lists, so `firstOther` re-sorts.
+    // head-on merges two of these lists, so they are re-sorted.
     const bodies = new Map<string, P[]>();
     const heads = new Map<string, P[]>();
     const steps = new Map<string, P[]>();
@@ -344,18 +350,24 @@ const findCrashed = <P extends PlayerShape<Cell>>(moves: Map<P, { from: string; 
     });
 
     const order = new Map([...moves.keys()].map((player, i) => [player, i]));
-    const firstOther = (player: P, ...groups: (P[] | undefined)[]) => groups
+    const byOrder = (a: P, b: P) => order.get(a)! - order.get(b)!;
+    const others = (player: P, ...groups: (P[] | undefined)[]) => groups
         .flatMap((group) => group ?? [])
-        .filter((other) => other !== player)
-        .sort((a, b) => order.get(a)! - order.get(b)!)[0];
+        .filter((other) => other !== player);
 
     const crashed = new Map<P, Death<P>>();
     moves.forEach(({ from, to }, player) => {
-        const headOn = firstOther(player, heads.get(to), steps.get(`${to}>${from}`));
-        const body = firstOther(player, bodies.get(to));
+        const rivals = others(player, heads.get(to), steps.get(`${to}>${from}`))
+            .sort((a, b) => b.snake.size - a.snake.size || byOrder(a, b));
+        if (rivals.length > 0 && rivals[0].snake.size >= player.snake.size) {
+            crashed.set(player, { cause: "head-on", by: rivals[0] });
+            return;
+        }
 
-        if (headOn) crashed.set(player, { cause: "head-on", by: headOn });
-        else if (body) crashed.set(player, { cause: "body", by: body });
+        const body = others(player, bodies.get(to))
+            .filter((other) => !rivals.includes(other))
+            .sort(byOrder)[0];
+        if (body) crashed.set(player, { cause: "body", by: body });
         else if (bodies.get(to)?.includes(player)) crashed.set(player, { cause: "self" });
     });
     return crashed;

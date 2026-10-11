@@ -2,7 +2,7 @@
   "format": "snake-brain",
   "formatVersion": 1,
   "encoderVersion": 1,
-  "rulesVersion": 2,
+  "rulesVersion": 3,
   "sizes": [23, 5, 3],
   "activation": "tanh",
   "layers": [
