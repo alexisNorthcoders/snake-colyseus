@@ -13,3 +13,5 @@ The multiplayer game server: rooms, the engine's rules, the bots, and reporting 
 **Provisional**: a Rating based on fewer than 5 Ranked matches.
 **Stand-in**: a roster bot that plays a Ranked match in place of a human, when an Account has waited 20 seconds alone. Its Rating is fixed and never stored or changed.
 **Forfeit**: leaving a Ranked match once it is dealt. It is a loss for the leaver.
+**Exhibition**: a match in an `exhibition` room between two roster bots chosen by its creator, watched by Spectators. Nothing about it is reported or at stake.
+**Spectator**: a client in an Exhibition who watches it and has no snake.
