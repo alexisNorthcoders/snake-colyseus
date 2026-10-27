@@ -45,3 +45,9 @@ Never tag by hand, and never tag a branch: CI owns the tags. See them at https:/
 ## Ranked matches
 
 The `ranked` room (`src/rooms/RankedRoom.ts`) is the Ranked queue: Accounts only (`onAuth` checks `options.token` with go-server's `/verify-token`), timed at the default speed, 2 seats, never started by a Start message. After `gameConfig.standInWaitMs` (20 s) with one Account seated, the rated roster bot closest to the Account's Rating (read from go-server's `/rating`; 1500 if unreachable) sits down as the Stand-in. Its round also reports to `/bot-results`. At the end it reports to `POST <API_URL>/ranked-results` (same `BOT_RESULTS_SECRET`), retrying with backoff, then sends each client a `ratingUpdate` message with go-server's answer. See `src/rankedResults.ts`. Its Stand-in choice (`standInFor`, `ROOKIE_RATING`) is a new export from `src/bots/`, so `engineVersion` got a minor bump.
+
+## Exhibitions
+
+The `exhibition` room (`src/rooms/ExhibitionRoom.ts`) plays two roster snakes against each other while the creator watches as a Spectator: `create("exhibition", { botA, botB, mode?, speed?, botReactionTicks?, seed? })`. It runs `SnakeRoom`'s set-up with the mode, speed, seed and reaction delay (never with `vsBot`), then seats `botA` and `botB` in that order, each falling back to the rookie when the id is missing or unknown. A mirror match is allowed. Each seat has fixed colours, and both bots keep their roster names.
+
+A Spectator is a client with no Player: joining adds no snake and starts the countdown (a no-op once the lobby is over). Start (`startsOnRequest` is false), move, new-player and colour messages from a Spectator do nothing. The round ends on the engine's rules with a normal `gameOver`. `reportsBotRounds` is false, so nothing goes to `/bot-results` or `/ranked-results`. The app defines `exhibition` with no `filterBy`.

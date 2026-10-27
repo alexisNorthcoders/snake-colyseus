@@ -7,6 +7,7 @@ import { playground } from "@colyseus/playground";
  */
 import { SnakeRoom } from "./rooms/SnakeRoom";
 import { RankedRoom } from "./rooms/RankedRoom";
+import { ExhibitionRoom } from "./rooms/ExhibitionRoom";
 import { modeOf } from "./engine";
 import { rosterListing } from "./bots";
 import { logBotResultsConfig } from "./botResults";
@@ -30,6 +31,8 @@ export default config({
         snake.getFilterOptions = (options) => ({ ...filterOptions(options), mode: modeOf(options?.mode) });
         // The Ranked queue: always timed at the default speed, so nothing to filter by.
         gameServer.define('ranked', RankedRoom);
+        // An Exhibition is private to its creator, so nothing to filter by.
+        gameServer.define('exhibition', ExhibitionRoom);
     },
     initializeExpress: (app) => {
         /**
