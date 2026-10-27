@@ -68,17 +68,19 @@ export class SnakeRoom extends Room<GameState> {
   // Server-only: the running countdown's timer, cleared when it reaches 0.
   private countdownTimer?: { clear(): void };
 
-  // Server-only: how the bot plays, from its roster entry. Fixed at creation.
-  private botDecider?: Decider;
+  // Server-only: each seated bot by player id: the roster id that plays there
+  // (after any fallback to the rookie) and how it plays, from that entry.
+  private botSeats = new Map<string, { botId: string; decider: Decider }>();
 
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
   private botReactionTicks = defaultBotReactionTicks;
 
-  // Server-only: the roster id that actually plays in a vs-bot room (after any
-  // fallback to the rookie), and how many rounds have reached play. Rounds are
-  // reported to go-server only in a vs-bot room.
-  private botId?: string;
+  // Server-only: how many rounds have reached play.
   private roundCount = 0;
+
+  // Whether a round reports to go-server's /bot-results. It does only with
+  // this set and exactly one bot seated.
+  protected reportsBotRounds = true;
 
   // Server-only: every random choice the game rules make (not cosmetics like the background)
   // draws from `rng`, derived from `state.seed` at room creation, so the same seed lays out the same food.
@@ -150,16 +152,15 @@ export class SnakeRoom extends Room<GameState> {
   }
 
   /**
-   * Seats the room's one bot. Only ever called for a vsBot room, which is
-   * locked from creation: `spawnCells` tops out at 4 snakes, so a bot must
-   * never sit in a room that can still take humans.
+   * Seats a bot, numbered from 1 in seating order. Only called for a room
+   * locked against humans: `spawnCells` tops out at 4 snakes, so a bot must
+   * never sit in a room that can still fill up.
    */
-  protected seatBot(entry: RosterEntry) {
-    this.botDecider = deciderFor(entry);
-    this.botId = entry.id;
+  protected seatBot(entry: RosterEntry, colours = new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff")) {
     // The colon can't appear in a session id, so this never collides with one.
-    const id = `bot:${this.roomId}`;
-    const bot = new Player(id, entry.name, new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff"));
+    const id = `bot:${this.roomId}:${this.botSeats.size + 1}`;
+    this.botSeats.set(id, { botId: entry.id, decider: deciderFor(entry) });
+    const bot = new Player(id, entry.name, colours);
     bot.isBot = true;
     this.state.players.push(bot);
   }
@@ -174,8 +175,13 @@ export class SnakeRoom extends Room<GameState> {
     this.snapshots.record(this.state);
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
+      const seat = this.botSeats.get(player.id);
+      if (!seat) {
+        console.error(`[SnakeRoom] Bot ${player.id} has no seat`);
+        return;
+      }
       try {
-        this.turn(player.snake, this.botDecider(this.botView(player)));
+        this.turn(player.snake, seat.decider(this.botView(player)));
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
@@ -201,13 +207,14 @@ export class SnakeRoom extends Room<GameState> {
       : Math.floor(Math.random() * 2 ** 32);
     this.rng = mulberry32(this.state.seed);
 
+    const ticks = options?.botReactionTicks;
+    if (typeof ticks === "number" && Number.isFinite(ticks)) {
+      this.botReactionTicks = Math.min(maxBotReactionTicks, Math.max(0, Math.round(ticks)));
+    }
+
     // A private match against a bot: locked before anyone can be matched in.
     if (options?.vsBot === true) {
       this.lock();
-      const ticks = options.botReactionTicks;
-      if (typeof ticks === "number" && Number.isFinite(ticks)) {
-        this.botReactionTicks = Math.min(maxBotReactionTicks, Math.max(0, Math.round(ticks)));
-      }
       // The roster snake asked for, or the rookie if it isn't there.
       this.seatBot(pickBot(options.botId));
     }
@@ -384,14 +391,14 @@ export class SnakeRoom extends Room<GameState> {
 
     this.transition("ended");
 
-    if (this.botId !== undefined) {
-      const botPlayer = this.state.players.find(p => p.isBot);
+    if (this.reportsBotRounds && this.botSeats.size === 1) {
+      const [[botPlayerId, { botId }]] = this.botSeats;
       reportBotResult({
         resultId: `${this.roomId}:${this.roundCount}`,
-        botId: this.botId,
+        botId,
         mode: this.state.mode,
         delay: this.botReactionTicks,
-        outcome: botOutcome ?? (winnerId === undefined ? "draw" : winnerId === botPlayer?.id ? "win" : "loss")
+        outcome: botOutcome ?? (winnerId === undefined ? "draw" : winnerId === botPlayerId ? "win" : "loss")
       });
     }
     this.roundOver(winnerId);

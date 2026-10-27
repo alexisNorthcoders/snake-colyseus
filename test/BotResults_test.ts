@@ -96,6 +96,21 @@ describe("vs-bot result reports", () => {
     assert.strictEqual(received[0].body.botId, "rookie");
   });
 
+  it("seats the bot as bot:<roomId>:1", async () => {
+    const { room, bot } = await vsBotRoom();
+    assert.strictEqual(bot().id, `bot:${room.roomId}:1`);
+  });
+
+  it("sends nothing when the room doesn't report bot rounds", async () => {
+    const { room, start, me, trap, gameOvers } = await vsBotRoom();
+    room.reportsBotRounds = false;
+    await start();
+    trap(me());
+    await until(() => gameOvers.length === 1);
+    await wait(100);
+    assert.strictEqual(received.length, 0);
+  });
+
   it("reports a loss when the human wins", async () => {
     const { room, start, me } = await vsBotRoom();
     await start();
