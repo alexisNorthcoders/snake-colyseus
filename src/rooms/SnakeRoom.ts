@@ -89,6 +89,9 @@ export class SnakeRoom extends Room<GameState> {
   // Whether a Start message begins the round. A ranked room never starts on a player's request.
   protected startsOnRequest = true;
 
+  /** Whether the countdown locks the room. An exhibition stays open to Spectators instead. */
+  protected locksOnStart = true;
+
   // Server-only: where every snake was over the last few ticks, for the bot's reaction delay.
   // Made once `botReactionTicks` is known; cleared at each round start.
   private snapshots!: Snapshots;
@@ -121,7 +124,7 @@ export class SnakeRoom extends Room<GameState> {
 
     // Matchmaking must never place anyone into a room that has started.
     // Never unlocked: the room is single-use.
-    this.lock();
+    if (this.locksOnStart) this.lock();
 
     this.roundLeavers = [];
     this.roundDeaths.clear();

@@ -17,8 +17,12 @@ const seatColours = [
 export class ExhibitionRoom extends SnakeRoom {
   protected startsOnRequest = false;
   protected reportsBotRounds = false;
+  protected locksOnStart = false;
+  maxClients = 16;
 
   onCreate(options: any) {
+    // Matchmaking never finds a private room; `joinById` still does.
+    this.setPrivate();
     // Never `vsBot`: the parent seats no bot of its own.
     super.onCreate({
       mode: options?.mode,
