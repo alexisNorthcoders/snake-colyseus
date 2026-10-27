@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { wait } from "./helpers";
+import { joinOptions, wait } from "./helpers";
 
 const until = async (condition: () => boolean) => {
   for (let i = 0; i < 1000 && !condition(); i++) await wait(10);
@@ -117,5 +117,46 @@ describe("exhibition room", () => {
     // Ids carry the room's id, so compare what the round decided.
     const outcome = (over: any) => over.rankings.map(({ name, score, cause }: any) => ({ name, score, cause }));
     assert.deepStrictEqual(outcome(second.gameOvers[0]), outcome(first.gameOvers[0]));
+  });
+
+  describe("joining by id", () => {
+    it("lets a second client joinById mid-round and receive the state", async () => {
+      const { room, state } = await exhibition({ botA: "dummy", botB: "dummy" });
+      room.setSimulationInterval(null);
+      await until(() => state.phase === "playing");
+      const second = await colyseus.sdk.joinById(room.roomId);
+      await until(() => second.state?.players?.length === 2);
+      assert.strictEqual(second.state.phase, "playing");
+      assert.strictEqual(state.players.length, 2);
+    });
+
+    it("is never found by join or joinOrCreate", async () => {
+      const { room } = await exhibition({});
+      const other = await colyseus.sdk.joinOrCreate("snake", joinOptions("x", "#0000ff"));
+      assert.notStrictEqual(other.roomId, room.roomId);
+      await assert.rejects(colyseus.sdk.join("exhibition", {}));
+    });
+
+    it("keeps the round running when a Spectator leaves, and disposes after the last", async () => {
+      const { room, state, spectator } = await exhibition({ botA: "dummy", botB: "dummy" });
+      room.setSimulationInterval(null);
+      const second = await colyseus.sdk.joinById(room.roomId);
+      await until(() => state.phase === "playing");
+      await second.leave();
+      await wait(50);
+      assert.strictEqual(state.phase, "playing");
+      assert.strictEqual(state.players.length, 2);
+      let disposed = false;
+      room.onDispose = ((orig: () => void) => () => { disposed = true; return orig?.call(room); })(room.onDispose);
+      await spectator.leave();
+      await until(() => disposed);
+    });
+
+    it("refuses the 17th client", async () => {
+      const { room } = await exhibition({});
+      for (let i = 0; i < 15; i++) await colyseus.sdk.joinById(room.roomId);
+      assert.strictEqual(room.clients.length, 16);
+      await assert.rejects(colyseus.sdk.joinById(room.roomId));
+    });
   });
 });
