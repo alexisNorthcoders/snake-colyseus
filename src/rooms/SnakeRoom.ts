@@ -175,8 +175,13 @@ export class SnakeRoom extends Room<GameState> {
     this.snapshots.record(this.state);
     this.state.players.forEach((player) => {
       if (!player.isBot || player.snake.isDead) return;
+      const seat = this.botSeats.get(player.id);
+      if (!seat) {
+        console.error(`[SnakeRoom] Bot ${player.id} has no seat`);
+        return;
+      }
       try {
-        this.turn(player.snake, this.botSeats.get(player.id).decider(this.botView(player)));
+        this.turn(player.snake, seat.decider(this.botView(player)));
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
