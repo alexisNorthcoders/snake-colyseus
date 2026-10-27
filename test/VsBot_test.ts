@@ -88,7 +88,8 @@ describe("vs-bot room", () => {
     const { room, state, human, gameOvers, start } = await vsBotRoom();
     const decider = brainDecider(brain);
     const views: any[] = [];
-    room.botDecider = (view: any) => {
+    const seat = room.botSeats.values().next().value;
+    seat.decider = (view: any) => {
       views.push(view);
       return decider(view);
     };
