@@ -100,10 +100,13 @@ describe("bot thoughts", () => {
     events.length = 0;
 
     for (let i = 1; i <= 3; i++) {
+      const before = events.length;
       await tick();
       assert.strictEqual(thoughts().length, i);
-      const last = events.map((e) => e.type);
-      assert.ok(last.lastIndexOf("thought") < last.lastIndexOf("patch"), "the patch came before the Thought");
+      const thisTick = events.slice(before).map((e) => e.type);
+      assert.strictEqual(thisTick[0], "thought", "the Thought wasn't first on the socket");
+      assert.ok(thisTick.includes("patch"), "no patch for the tick");
+      assert.strictEqual(thisTick.indexOf("thought"), thisTick.lastIndexOf("thought"), "more than one Thought in a tick");
     }
     const [thought] = thoughts();
     assert.strictEqual(thought.playerId, bot().id);
@@ -117,13 +120,14 @@ describe("bot thoughts", () => {
   it("sends a bot's death tick Thought, and the last one before gameOver, then none", async () => {
     const { state, events, bot, me, start, tick, thoughts } = await vsBotRoom({ botId: "rookie", botThoughts: true });
     await start();
+    await wait(80);
     events.length = 0;
     trap(me());
     await tick();
     assert.strictEqual(state.phase, "ended");
     const order = events.map((e) => e.type);
-    assert.ok(order.indexOf("thought") !== -1 && order.indexOf("thought") < order.indexOf("gameOver"));
-    assert.ok(order.indexOf("gameOver") < order.indexOf("patch", order.indexOf("gameOver")));
+    assert.deepStrictEqual(order.slice(0, 3), ["thought", "gameOver", "patch"], "the tick's events weren't Thought, gameOver, patch");
+    assert.strictEqual(order.filter((t) => t === "thought").length, 1);
     const count = thoughts().length;
     await tick();
     await tick();
