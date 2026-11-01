@@ -53,14 +53,14 @@ describe("exhibition room", () => {
     assert.strictEqual(state.players.length, 2);
   });
 
-  it("asks each seat's own decider every tick", async () => {
+  it("asks each seat's own thinker every tick", async () => {
     const spectator = await colyseus.sdk.create("exhibition", { botA: "dummy", botB: "dummy" });
     const room: any = colyseus.getRoomById(spectator.roomId);
     room.setSimulationInterval(null);
     const asked: string[] = [];
     for (const [id, seat] of room.botSeats) {
-      const decider = seat.decider;
-      seat.decider = (view: any) => (asked.push(id), decider(view));
+      const thinker = seat.thinker;
+      seat.thinker = (view: any) => (asked.push(id), thinker(view));
     }
     await until(() => room.state.phase === "playing");
     room.update();

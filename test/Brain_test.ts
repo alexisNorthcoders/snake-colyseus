@@ -13,6 +13,8 @@ import {
   INPUT_LABELS,
   OUTPUT_LABELS,
   brainDecider,
+  brainThinker,
+  confidences,
   dummyBrain,
   encode,
   layerValues,
@@ -250,5 +252,33 @@ describe("brain decider", () => {
     blocked.self.body = [{ x: 6, y: 5 }];
     assert.strictEqual(brainDecider(brain)(view({ x: 1, y: 0 })), "r");
     assert.strictEqual(brainDecider(brain)(blocked), "u");
+  });
+});
+
+describe("brain thinker", () => {
+  it("gives the decider's direction and forward's outputs, ties included", () => {
+    const moves = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }, { x: 0, y: 0 }];
+    const outputsList = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, 1, 0], [0, 1, 1], [1, 0, 1], [0.3, -2, 0.7]];
+    moves.forEach((moved) => outputsList.forEach((outputs) => {
+      const brain = flatBrain([ENCODER_SIZE, 3], outputs);
+      const v = view(moved);
+      const thought = brainThinker(brain)(v);
+      assert.strictEqual(thought.direction, brainDecider(brain)(v));
+      assert.deepStrictEqual(thought.outputs, forward(brain, encode(v)));
+    }));
+  });
+});
+
+describe("confidences", () => {
+  it("sums to about 1, favours the highest output and stays finite for huge ones", () => {
+    [[0, 0, 0], [1, 2, 3], [-5, 0.2, 4], [1000, 999, 0], [1e308, 1e308, -1e308]].forEach((outputs) => {
+      const c = confidences(outputs);
+      const values = [c.left, c.straight, c.right];
+      values.forEach((v) => assert.ok(Number.isFinite(v)));
+      assert.ok(Math.abs(values.reduce((a, b) => a + b, 0) - 1) <= 0.015);
+      const best = outputs.indexOf(Math.max(...outputs));
+      values.forEach((v) => assert.ok(values[best] >= v));
+    });
+    assert.deepStrictEqual(confidences([0, 0, 0]), { left: 0.33, straight: 0.33, right: 0.33 });
   });
 });

@@ -8,7 +8,7 @@
  */
 
 // What a bot sees, with its reaction delay.
-export type { BotView, Decider, ViewedGame } from "./view";
+export type { BotView, Decider, Thinker, Thought, ViewedGame } from "./view";
 export { Snapshots, viewFor } from "./view";
 
 // The rookie: the first bot.
@@ -23,11 +23,11 @@ export { ENCODER_V2_SIZE, ENCODER_V2_VERSION, encodeV2 } from "./encoderV2";
 
 // Brains: trained snakes, saved as JSON, played as a `Decider`.
 export type { Activation, Brain } from "./brain";
-export { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, brainDecider, brainProblems, forward, layerValues, OUTPUT_LABELS } from "./brain";
+export { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, brainDecider, brainProblems, brainThinker, confidences, forward, layerValues, OUTPUT_LABELS } from "./brain";
 
 // Dummy: the hand-made brain.
 export { dummyBrain } from "./dummy";
 
 // The roster: the named opponents a vs-bot room can play.
 export type { Personality, RosterEntry, RosterListing, RosterLog, TrainingMethod } from "./roster";
-export { ROOKIE_RATING, deciderFor, loadRoster, pickBot, roster, rosterListing, standInFor } from "./roster";
+export { ROOKIE_RATING, deciderFor, thinkerFor, loadRoster, pickBot, roster, rosterListing, standInFor } from "./roster";
