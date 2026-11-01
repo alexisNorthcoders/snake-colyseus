@@ -17,6 +17,18 @@ export interface BotView {
 /** How a bot plays: which way to go next, from what it sees. Pure. */
 export type Decider = (view: BotView) => Direction;
 
+/**
+ * A decision with the scores behind it: `outputs` are a brain's raw outputs in
+ * the order left, straight, right. A scripted bot has none.
+ */
+export interface Thought {
+  direction: Direction;
+  outputs?: number[];
+}
+
+/** How a bot plays, with its reasoning: a `Decider` that shows its scores. Pure. */
+export type Thinker = (view: BotView) => Thought;
+
 /** The part of a game a bot's view is built from: the schema state in the room, plain objects headless. */
 export interface ViewedGame extends Pick<GameShape<Cell>, "mode" | "ticksLeft" | "tickLimit"> {
   players: Iterable<PlayerShape<Cell>>;

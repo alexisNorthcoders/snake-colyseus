@@ -1,6 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
-import { BotView, Decider, RosterEntry, Snapshots, deciderFor, pickBot, viewFor } from "../bots";
+import { BotView, RosterEntry, Snapshots, Thinker, thinkerFor, pickBot, viewFor } from "../bots";
 import { gameConfig } from "../gameConfig";
 import { BotOutcome, reportBotResult } from "../botResults";
 import {
@@ -70,7 +70,7 @@ export class SnakeRoom extends Room<GameState> {
 
   // Server-only: each seated bot by player id: the roster id that plays there
   // (after any fallback to the rookie) and how it plays, from that entry.
-  private botSeats = new Map<string, { botId: string; decider: Decider }>();
+  private botSeats = new Map<string, { botId: string; thinker: Thinker }>();
 
   // Server-only: how many ticks old the bot's view of other snakes is. Fixed at creation.
   private botReactionTicks = defaultBotReactionTicks;
@@ -162,7 +162,7 @@ export class SnakeRoom extends Room<GameState> {
   protected seatBot(entry: RosterEntry, colours = new PlayerColors("#8a8a8a", "#5c5c5c", "#ffffff")) {
     // The colon can't appear in a session id, so this never collides with one.
     const id = `bot:${this.roomId}:${this.botSeats.size + 1}`;
-    this.botSeats.set(id, { botId: entry.id, decider: deciderFor(entry) });
+    this.botSeats.set(id, { botId: entry.id, thinker: thinkerFor(entry) });
     const bot = new Player(id, entry.name, colours);
     bot.isBot = true;
     this.state.players.push(bot);
@@ -184,7 +184,7 @@ export class SnakeRoom extends Room<GameState> {
         return;
       }
       try {
-        this.turn(player.snake, seat.decider(this.botView(player)));
+        this.turn(player.snake, seat.thinker(this.botView(player)).direction);
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }

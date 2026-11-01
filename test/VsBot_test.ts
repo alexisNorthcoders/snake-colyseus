@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
-import { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, Brain, ENCODER_V2_SIZE, ENCODER_V2_VERSION, brainDecider, brainProblems, deciderFor, encodeV2, forward, pickBot } from "../src/bots";
+import { BRAIN_FORMAT, BRAIN_FORMAT_VERSION, Brain, ENCODER_V2_SIZE, ENCODER_V2_VERSION, brainProblems, brainThinker, deciderFor, encodeV2, forward, pickBot } from "../src/bots";
 import { RULES_VERSION, directionMap } from "../src/engine";
 import { joinOptions, wait } from "./helpers";
 
@@ -86,12 +86,12 @@ describe("vs-bot room", () => {
     };
     assert.deepStrictEqual(brainProblems(brain), []);
     const { room, state, human, gameOvers, start } = await vsBotRoom();
-    const decider = brainDecider(brain);
+    const thinker = brainThinker(brain);
     const views: any[] = [];
     const seat = room.botSeats.values().next().value;
-    seat.decider = (view: any) => {
+    seat.thinker = (view: any) => {
       views.push(view);
-      return decider(view);
+      return thinker(view);
     };
     await start();
     assert.strictEqual(state.phase, "playing");

@@ -1,7 +1,7 @@
 import { Direction, directionMap } from "../engine";
 import { ENCODER_SIZE, ENCODER_VERSION, encode } from "./encoder";
 import { ENCODER_V2_SIZE, ENCODER_V2_VERSION, encodeV2 } from "./encoderV2";
-import { BotView, Decider } from "./view";
+import { BotView, Decider, Thinker } from "./view";
 
 /** What marks a JSON file as a brain. */
 export const BRAIN_FORMAT = "snake-brain";
@@ -155,20 +155,36 @@ const directions = Object.keys(directionMap) as Direction[];
 const directionOf = (x: number, y: number) => directions.find((d) => directionMap[d].x === x && directionMap[d].y === y)!;
 
 /**
- * `brain` as a `Decider`: it reads the view through the brain's encoder and
+ * `brain` as a `Thinker`: it reads the view through the brain's encoder and
  * takes the highest of its three outputs, left, straight or right of the way
  * it last moved (right, if it hasn't moved, as the encoder has it). A tie goes
  * to straight, then left. Pure and deterministic. `brain` must be valid.
  */
-export function brainDecider(brain: Brain): Decider {
+export function brainThinker(brain: Brain): Thinker {
   const { encode } = encoders[brain.encoderVersion];
   return (view) => {
-    const [left, straight, right] = forward(brain, encode(view));
+    const outputs = forward(brain, encode(view));
+    const [left, straight, right] = outputs;
     const moved = view.self.movedDirection;
     const [fx, fy] = moved.x === 0 && moved.y === 0 ? [1, 0] : [moved.x, moved.y];
     // Right of the way it's heading; left is its negative.
     const [rx, ry] = [-fy, fx];
-    if (straight >= left && straight >= right) return directionOf(fx, fy);
-    return left >= right ? directionOf(-rx, -ry) : directionOf(rx, ry);
+    if (straight >= left && straight >= right) return { direction: directionOf(fx, fy), outputs };
+    return { direction: left >= right ? directionOf(-rx, -ry) : directionOf(rx, ry), outputs };
   };
+}
+
+/** `brain` as a `Decider`: the direction of its `brainThinker`. */
+export function brainDecider(brain: Brain): Decider {
+  const think = brainThinker(brain);
+  return (view) => think(view).direction;
+}
+
+/** How sure the brain is of each way: a softmax of its outputs at temperature 1, to 2 decimal places. */
+export function confidences(outputs: number[]): Record<(typeof OUTPUT_LABELS)[number], number> {
+  const top = Math.max(...outputs);
+  const exps = outputs.map((o) => Math.exp(o - top));
+  const total = exps.reduce((a, b) => a + b, 0);
+  const [left, straight, right] = exps.map((e) => Math.round((e / total) * 100) / 100);
+  return { left, straight, right };
 }

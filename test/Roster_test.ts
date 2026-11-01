@@ -7,6 +7,7 @@ import { RULES_VERSION } from "../src/engine";
 import {
   BotView,
   deciderFor,
+  thinkerFor,
   dummyBrain,
   loadRoster,
   pickBot,
@@ -244,6 +245,17 @@ describe("the roster", () => {
 
     it("works for every entry", () => {
       roster.forEach((entry) => assert.ok(["u", "d", "l", "r"].includes(deciderFor(entry)(view()))));
+    });
+  });
+
+  describe("a thinker for any entry", () => {
+    it("agrees with the decider for every entry, with outputs for a brain only", () => {
+      roster.forEach((entry) => {
+        const thought = thinkerFor(entry)(view());
+        assert.strictEqual(thought.direction, deciderFor(entry)(view()));
+        assert.strictEqual(thought.outputs !== undefined, entry.kind === "brain");
+      });
+      assert.strictEqual(thinkerFor(pickBot("rookie"))(view()).outputs, undefined);
     });
   });
 

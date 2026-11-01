@@ -15,9 +15,9 @@ import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 import { RULES_VERSION } from "../engine";
-import { Brain, brainDecider, brainProblems, isObject } from "./brain";
+import { Brain, brainDecider, brainThinker, brainProblems, isObject } from "./brain";
 import { rookie, rookieBotProfile } from "./rookie";
-import { Decider } from "./view";
+import { Decider, Thinker } from "./view";
 
 const personalities = ["glutton", "survivor", "hunter"] as const;
 const methods = ["scripted", "hand-made", "neuroevolution", "ppo"] as const;
@@ -191,6 +191,13 @@ export function standInFor(accountRating: number, from: RosterEntry[] = roster):
 /** How `entry` plays. */
 export function deciderFor(entry: RosterEntry): Decider {
   return entry.kind === "scripted" ? entry.decider : brainDecider(entry.brain);
+}
+
+/** How `entry` plays, with the scores behind it when it has any. */
+export function thinkerFor(entry: RosterEntry): Thinker {
+  if (entry.kind === "brain") return brainThinker(entry.brain);
+  const { decider } = entry;
+  return (view) => ({ direction: decider(view) });
 }
 
 /** Every entry's metadata, without its brain or code. */
