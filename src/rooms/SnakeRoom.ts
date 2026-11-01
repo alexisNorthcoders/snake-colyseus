@@ -1,6 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Phase, Player, Snake, PlayerColors, newCoordinates, newFood } from "./schema/SnakeState";
-import { BotView, RosterEntry, Snapshots, Thinker, thinkerFor, pickBot, viewFor } from "../bots";
+import { BotView, confidences, RosterEntry, Snapshots, Thinker, thinkerFor, pickBot, viewFor } from "../bots";
 import { gameConfig } from "../gameConfig";
 import { BotOutcome, reportBotResult } from "../botResults";
 import {
@@ -44,7 +44,8 @@ export class SnakeRoom extends Room<GameState> {
     UPDATE_PLAYER: "updatePlayer",
     PING: "ping",
     PONG: "pong",
-    RATING_UPDATE: "ratingUpdate"
+    RATING_UPDATE: "ratingUpdate",
+    BOT_THOUGHT: "botThought"
   };
 
   maxClients = 4;
@@ -91,6 +92,10 @@ export class SnakeRoom extends Room<GameState> {
 
   /** Whether the countdown locks the room. An exhibition stays open to Spectators instead. */
   protected locksOnStart = true;
+
+  // Server-only: whether each live bot's Thought is sent to clients every tick.
+  // Set only for a vs-bot room whose creator asked for it.
+  protected sendsBotThoughts = false;
 
   // Server-only: where every snake was over the last few ticks, for the bot's reaction delay.
   // Made once `botReactionTicks` is known; cleared at each round start.
@@ -184,7 +189,16 @@ export class SnakeRoom extends Room<GameState> {
         return;
       }
       try {
-        this.turn(player.snake, seat.thinker(this.botView(player)).direction);
+        const thought = seat.thinker(this.botView(player));
+        this.turn(player.snake, thought.direction);
+        // At once, not afterNextPatch: the last one must precede gameOver.
+        if (this.sendsBotThoughts) {
+          this.broadcast(SnakeRoom.messageTypes.BOT_THOUGHT, {
+            playerId: player.id,
+            chose: thought.direction,
+            ...(thought.outputs && { confidence: confidences(thought.outputs) })
+          });
+        }
       } catch (error) {
         console.error("[SnakeRoom] Bot decision failed:", error);
       }
@@ -218,6 +232,7 @@ export class SnakeRoom extends Room<GameState> {
     // A private match against a bot: locked before anyone can be matched in.
     if (options?.vsBot === true) {
       this.lock();
+      this.sendsBotThoughts = options.botThoughts === true;
       // The roster snake asked for, or the rookie if it isn't there.
       this.seatBot(pickBot(options.botId));
     }
