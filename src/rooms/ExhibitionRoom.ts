@@ -30,6 +30,8 @@ export class ExhibitionRoom extends SnakeRoom {
       seed: options?.seed,
       botReactionTicks: options?.botReactionTicks
     });
+    // Thoughts go to every Spectator when asked for; only `true` counts.
+    this.sendsBotThoughts = options?.botThoughts === true;
     // An unknown or missing id falls back to the rookie; a mirror match is allowed.
     this.seatBot(pickBot(options?.botA), seatColours[0]());
     this.seatBot(pickBot(options?.botB), seatColours[1]());
