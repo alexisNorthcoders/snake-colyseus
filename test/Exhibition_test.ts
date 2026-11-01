@@ -3,6 +3,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config";
 import { GameState } from "../src/rooms/schema/SnakeState";
+import { directionMap } from "../src/engine";
 import { SnakeRoom } from "../src/rooms/SnakeRoom";
 import { joinOptions, wait } from "./helpers";
 
@@ -157,6 +158,103 @@ describe("exhibition room", () => {
       for (let i = 0; i < 15; i++) await colyseus.sdk.joinById(room.roomId);
       assert.strictEqual(room.clients.length, 16);
       await assert.rejects(colyseus.sdk.joinById(room.roomId));
+    });
+  });
+
+  describe("bot thoughts", () => {
+    /** An exhibition whose Spectator collects Thoughts; `manual` drives the ticks by hand, else the room runs its own clock. */
+    async function thinking(options: object, manual = true) {
+      const made = await exhibition({ botThoughts: true, ...options });
+      if (manual) made.room.setSimulationInterval(null);
+      const thoughts: any[] = [];
+      made.spectator.onMessage(SnakeRoom.messageTypes.BOT_THOUGHT, (m) => thoughts.push(m));
+      const tick = async () => {
+        made.room.update();
+        made.room.broadcastPatch();
+        await wait(40);
+      };
+      return { ...made, thoughts, tick };
+    }
+
+    it("sends each live seat a Thought per playing tick, and none before play", async () => {
+      const { state, thoughts, tick } = await thinking({ botA: "dummy", botB: "munch-max" });
+      await wait(40);
+      assert.strictEqual(thoughts.length, 0, "a Thought before play");
+      await until(() => state.phase === "playing");
+      assert.strictEqual(thoughts.length, 0, "a Thought in the countdown");
+      for (let i = 1; i <= 3; i++) {
+        await tick();
+        assert.strictEqual(thoughts.length, 2 * i);
+      }
+      const ids = state.players.map((p) => p.id).sort();
+      assert.deepStrictEqual([...new Set(thoughts.map((t) => t.playerId))].sort(), ids);
+      assert.ok(thoughts.every((t) => Object.keys(directionMap).includes(t.chose)));
+    });
+
+    it("sends none after gameOver", async () => {
+      const { state, thoughts, gameOvers } = await thinking({ botA: "dummy", botB: "dummy", mode: "timed", speed: 20, seed: 7 }, false);
+      await until(() => state.phase === "ended");
+      assert.strictEqual(gameOvers.length, 1);
+      const count = thoughts.length;
+      await wait(100);
+      assert.strictEqual(thoughts.length, count, "a Thought after gameOver");
+    });
+
+    it("gives each seat its own playerId in a mirror match", async () => {
+      const { state, thoughts, tick } = await thinking({ botA: "munch-max", botB: "munch-max" });
+      await until(() => state.phase === "playing");
+      await tick();
+      const seen = new Set(thoughts.map((t) => t.playerId));
+      assert.strictEqual(seen.size, 2);
+      assert.deepStrictEqual([...seen].sort(), state.players.map((p) => p.id).sort());
+    });
+
+    it("gives a brain seat confidence, and the rookie seat none", async () => {
+      const { state, thoughts, tick } = await thinking({ botA: "dummy" });
+      await until(() => state.phase === "playing");
+      await tick();
+      const brain = state.players.find((p) => p.name !== "Rookie")!;
+      const rookie = state.players.find((p) => p.name === "Rookie")!;
+      const byId = (id: string) => thoughts.find((t) => t.playerId === id);
+      assert.ok(byId(brain.id)!.confidence);
+      assert.ok(["left", "straight", "right"].every((k) => typeof byId(brain.id).confidence[k] === "number"));
+      assert.ok(!("confidence" in byId(rookie.id)!));
+    });
+
+    it("sends a mid-round joinById Spectator Thoughts from the next tick", async () => {
+      const { room, state, tick } = await thinking({ botA: "dummy", botB: "munch-max" });
+      await until(() => state.phase === "playing");
+      await tick();
+      const late = await colyseus.sdk.joinById(room.roomId);
+      const got: any[] = [];
+      late.onMessage(SnakeRoom.messageTypes.BOT_THOUGHT, (m) => got.push(m));
+      await tick();
+      assert.strictEqual(got.length, 2);
+    });
+
+    it("sends none without the option, or with anything but true", async () => {
+      for (const extra of [{}, { botThoughts: false }, { botThoughts: "true" }, { botThoughts: 1 }]) {
+        const { state, thoughts, tick } = await thinking({ botA: "dummy", botB: "dummy", botThoughts: undefined, ...extra });
+        await until(() => state.phase === "playing");
+        await tick();
+        await tick();
+        assert.strictEqual(thoughts.length, 0, JSON.stringify(extra));
+      }
+    });
+
+    it("reports nothing to go-server while sending Thoughts", async () => {
+      const original = globalThis.fetch;
+      const fetched: unknown[] = [];
+      globalThis.fetch = ((...args: unknown[]) => (fetched.push(args), Promise.reject(new Error("no network")))) as any;
+      try {
+        const { state, thoughts, gameOvers } = await thinking({ botA: "dummy", botB: "dummy", mode: "timed", speed: 20, seed: 3 }, false);
+        await until(() => state.phase === "ended");
+        assert.ok(thoughts.length > 0 && gameOvers.length === 1);
+        await wait(50);
+        assert.deepStrictEqual(fetched, []);
+      } finally {
+        globalThis.fetch = original;
+      }
     });
   });
 });
