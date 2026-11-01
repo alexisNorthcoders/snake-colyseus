@@ -53,3 +53,12 @@ The `exhibition` room (`src/rooms/ExhibitionRoom.ts`) plays two roster snakes ag
 Anyone holding the room id can `joinById` as a Spectator, in the lobby or mid-round, up to 16 clients; the last one leaving disposes the room. The room is private (`setPrivate`) rather than locked, so `join` and `joinOrCreate` never land in it while `joinById` still works: the countdown's lock is the protected `locksOnStart` flag, false here. Locking is what keeps a human out of a vs-bot room, and an exhibition never seats a human, so that invariant still holds.
 
 A Spectator is a client with no Player: joining adds no snake and starts the countdown (a no-op once the lobby is over). Start (`startsOnRequest` is false), move, new-player and colour messages from a Spectator do nothing. The round ends on the engine's rules with a normal `gameOver`. `reportsBotRounds` is false, so nothing goes to `/bot-results` or `/ranked-results`. The app defines `exhibition` with no `filterBy`.
+
+## Bot Thoughts
+
+A private vs-bot room sends **Thoughts** when asked: `create("snake", { vsBot: true, botId, botThoughts: true })`. Only `true` counts. `SnakeRoom` sets its protected `sendsBotThoughts` flag in the `vsBot` branch of `onCreate`, and nowhere else.
+
+- Each tick of play, for the live bot, every client gets `botThought`: `{ playerId, chose, confidence? }`. `chose` is `l`, `r`, `u` or `d`, as in a `move` message. `confidence` is `{ left, straight, right }` from `confidences`, relative to the bot's heading, and is left out for a scripted bot.
+- It is broadcast at once, after the bot's turn and before the rules run, never with `afterNextPatch`, so the order is Thought, then `gameOver` if the round ended, then the patch. A bot that dies on a tick still sends that tick's Thought, and none after. A thinker that throws sends none.
+- `RankedRoom` ignores every client option, so a Stand-in never sends Thoughts. `ExhibitionRoom` seats its bots outside the `vsBot` branch, so it sends none either.
+- `botThoughts` is not in `filterBy`, and Thoughts never change how a bot plays or what is reported to `/bot-results`.
