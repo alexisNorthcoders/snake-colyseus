@@ -18,3 +18,4 @@ The multiplayer game server: rooms, the engine's rules, the bots, and reporting 
 **Vs-bot match**: a Casual match between one human and one roster bot, in a `snake` room locked at creation.
 **Thought**: what a roster bot decided on one tick of play, sent to clients who asked for it, with its confidences if it has a brain. It shows the bot's decision and never changes it.
 **Confidence**: a brain's share for one of left, straight or right on one tick, relative to its heading. A reading of the brain's outputs, not a probability of being right, and not comparable between training methods.
+**Queued turn**: a turn a snake has accepted but not yet made. A snake holds at most two and makes one per tick; a turn that repeats or reverses the last queued one, or arrives when two are waiting, is dropped.
