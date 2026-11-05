@@ -40,9 +40,9 @@ export class Snake extends Schema {
     @type("string") playerId: string = "";
 
     // Server-only, not synced: the direction the snake last actually moved in,
-    // which a turn is checked against. `direction` holds the latest key, and
-    // two keys inside one tick could otherwise add up to a reversal.
+    // and the turns it hasn't made yet (see the engine's `turn`).
     movedDirection: DirectionVector = { x: 0, y: 0 };
+    queuedTurns: DirectionVector[] = [];
 
     /** Replaces the whole tail with `cells`, given newest first. */
     setTail(cells: Cell[]) { setTail(this, cells, newCoordinates); }

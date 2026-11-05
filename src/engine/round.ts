@@ -25,10 +25,11 @@ export const dealRound = <C extends Cell>(
         snake.x = spawns[i].x;
         snake.y = spawns[i].y;
 
-        // A turn during the countdown overwrites this and becomes the first move.
+        // A turn during the countdown is queued and becomes the first move.
         snake.direction.x = 1;
         snake.direction.y = 0;
         snake.movedDirection = { x: 1, y: 0 };
+        snake.queuedTurns = [];
 
         snake.isDead = false;
         snake.size = 1;

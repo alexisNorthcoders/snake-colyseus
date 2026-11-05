@@ -10,11 +10,16 @@ import { NewCell, TailRing, advanceTail, growTail } from "./tail";
  * object in a headless game. Changed in place, never copied.
  */
 export interface SnakeShape<C extends Cell> extends TailRing<C>, Cell {
-    // The key last pressed, changed field by field since the schema syncs it.
+    // The way the snake moves next tick, changed field by field since the
+    // schema syncs it.
     direction: Cell;
     // The direction the snake last actually moved in, which a turn is checked
-    // against: two keys inside one tick could otherwise add up to a reversal.
+    // against when none is queued.
     movedDirection: DirectionVector;
+    // Turns not made yet, oldest first, at most `maxQueuedTurns`; one is made
+    // each tick. Server-only. Optional so a snake built before the queue
+    // existed still works: `turn` starts it.
+    queuedTurns?: DirectionVector[];
     size: number;
     score: number;
     // Ticks since the snake last ate, from 0 when the round starts. Only
@@ -121,15 +126,30 @@ export const winnerOf = (game: Pick<GameShape<Cell>, "players">): string | undef
     return best.id;
 };
 
-/** Points the snake in direction `key`, ignoring a turn that would reverse it. */
-export const turn = (snake: Pick<SnakeShape<Cell>, "direction" | "movedDirection">, key: Direction) => {
+/** How many turns a snake holds before it makes them, one a tick. */
+const maxQueuedTurns = 2;
+
+/**
+ * Queues a turn in direction `key`, made on the first tick with no earlier
+ * turn waiting. It is checked against the last queued turn, or with none the
+ * way the snake last moved: a repeat is dropped, and so is a reversal, which
+ * would step the head straight back onto the body. A turn arriving with the
+ * queue full is dropped too, never replacing one already accepted.
+ */
+export const turn = (snake: Pick<SnakeShape<Cell>, "direction" | "movedDirection" | "queuedTurns">, key: Direction) => {
     const to = directionMap[key];
+    const queue = (snake.queuedTurns ??= []);
+    if (queue.length >= maxQueuedTurns) return;
 
-    // Reversing would step the head straight back onto the body, so a
-    // reversal is ignored rather than left to kill the snake.
-    const moved = snake.movedDirection;
-    if (to.x === -moved.x && to.y === -moved.y) return;
+    const last = queue[queue.length - 1] ?? snake.movedDirection;
+    if (to.x === last.x && to.y === last.y) return;
+    if (to.x === -last.x && to.y === -last.y) return;
 
+    queue.push({ x: to.x, y: to.y });
+    if (queue.length === 1) pointAt(snake, to);
+};
+
+const pointAt = (snake: Pick<SnakeShape<Cell>, "direction">, to: DirectionVector) => {
     snake.direction.x = to.x;
     snake.direction.y = to.y;
 };
@@ -213,9 +233,16 @@ const moveSnake = <C extends Cell>(snake: SnakeShape<C>) => {
     const prevX = snake.x;
     const prevY = snake.y;
 
+    const turned = snake.queuedTurns?.shift();
+    if (turned) pointAt(snake, turned);
+
     snake.x += snake.direction.x;
     snake.y += snake.direction.y;
     snake.movedDirection = { x: snake.direction.x, y: snake.direction.y };
+
+    // So `direction` keeps saying where the snake goes next.
+    const next = snake.queuedTurns?.[0];
+    if (next) pointAt(snake, next);
 
     if (snake.x >= rulesConfig.scaleFactor) {
         snake.x = 0;

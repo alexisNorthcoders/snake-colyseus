@@ -6,6 +6,7 @@ import {
   GameShape,
   PlayerShape,
   TickReport,
+  dealRound,
   foodScore,
   mulberry32,
   newPlainCell,
@@ -436,6 +437,87 @@ describe("engine turn", () => {
     turn(snake, "u");
     turn(snake, "l");
     assert.deepStrictEqual(snake.direction, { x: 0, y: -1 });
+  });
+
+  describe("queued turns", () => {
+    /** A lone snake heading right from (5,5), with no body to run into. */
+    const rightward = () => {
+      const player = plainPlayer("a", { x: 5, y: 5 }, right);
+      return { snake: player.snake, game: plainGame([player]) };
+    };
+
+    /** Where the snake's head is after each of `ticks` ticks. */
+    const path = (game: PlainGame, ticks: number) => Array.from({ length: ticks }, () => {
+      run(game);
+      const { x, y } = game.players[0].snake;
+      return { x, y };
+    });
+
+    it("makes two turns sent inside one tick on the next two ticks, in order", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "l");
+      assert.deepStrictEqual(path(game, 3), [{ x: 5, y: 4 }, { x: 4, y: 4 }, { x: 3, y: 4 }]);
+    });
+
+    it("drops a third turn sent while two are waiting", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "l");
+      turn(snake, "d");
+      assert.deepStrictEqual(path(game, 3), [{ x: 5, y: 4 }, { x: 4, y: 4 }, { x: 3, y: 4 }]);
+    });
+
+    it("drops a turn that repeats the last queued one, without using up a slot", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "u");
+      turn(snake, "l");
+      assert.deepStrictEqual(path(game, 2), [{ x: 5, y: 4 }, { x: 4, y: 4 }]);
+    });
+
+    it("drops a turn that reverses the last queued one, without using up a slot", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "d");
+      turn(snake, "l");
+      assert.deepStrictEqual(path(game, 2), [{ x: 5, y: 4 }, { x: 4, y: 4 }]);
+    });
+
+    it("drops a repeat of the way the snake is moving, without using up a slot", () => {
+      const { snake, game } = rightward();
+      turn(snake, "r");
+      turn(snake, "u");
+      turn(snake, "l");
+      assert.deepStrictEqual(path(game, 2), [{ x: 5, y: 4 }, { x: 4, y: 4 }]);
+    });
+
+    it("makes one turn a tick exactly as it is sent", () => {
+      const { snake, game } = rightward();
+      const heads = (["d", "l", "u"] as Direction[]).flatMap((key) => {
+        turn(snake, key);
+        return path(game, 1);
+      });
+      assert.deepStrictEqual(heads, [{ x: 5, y: 6 }, { x: 4, y: 6 }, { x: 4, y: 5 }]);
+    });
+
+    it("forgets turns still waiting when a new round is dealt", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "l");
+      dealRound(game, 0, newPlainCell);
+      const start = { x: snake.x, y: snake.y };
+      assert.deepStrictEqual(path(game, 2), [{ x: start.x + 1, y: start.y }, { x: start.x + 2, y: start.y }]);
+    });
+
+    it("takes a new turn again once the queue has been worked through", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "l");
+      path(game, 2);
+      turn(snake, "d");
+      assert.deepStrictEqual(path(game, 1), [{ x: 4, y: 5 }]);
+    });
   });
 
   it("changes the direction in place rather than replacing it", () => {
