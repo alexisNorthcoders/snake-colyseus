@@ -116,4 +116,16 @@ describe("reverse turns", () => {
     assert.ok(!snake.isDead, "the snake died from a reversal split across one tick");
     assert.deepStrictEqual([snake.x, snake.y], [10, 9]);
   });
+
+  it("makes two turns sent inside one tick on the next two ticks", async () => {
+    const { room, snake, move } = await rightwardSnake();
+
+    await move("u");
+    await move("l");
+    room.update();
+    room.update();
+
+    assert.ok(!snake.isDead);
+    assert.deepStrictEqual([snake.x, snake.y], [9, 9], "the second turn was lost");
+  });
 });

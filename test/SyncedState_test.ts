@@ -36,4 +36,9 @@ describe("synced state", () => {
     assert.strictEqual(state.players[0].type, undefined);
     assert.strictEqual(state.players[0].snake.type, undefined);
   });
+
+  it("does not carry the snake's queued turns", async () => {
+    const state = await clientState();
+    assert.strictEqual(state.players[0].snake.queuedTurns, undefined);
+  });
 });
