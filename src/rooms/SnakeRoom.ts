@@ -273,7 +273,13 @@ export class SnakeRoom extends Room<GameState> {
 
     this.onMessage(SnakeRoom.messageTypes.START_GAME, (client) => {
       console.log("[SnakeRoom] Received startGame message from", client.sessionId);
-      if (this.startsOnRequest) this.startCountdown();
+      if (!this.startsOnRequest) return;
+      // A lone human in a casual room gets the rookie as a Stand-in. A vs-bot
+      // room already has its bot; the room locks in startCountdown, right after.
+      if (this.state.phase === "lobby" && this.botSeats.size === 0 && this.state.players.filter(p => !p.isBot).length === 1) {
+        this.seatBot(pickBot("rookie"));
+      }
+      this.startCountdown();
     });
 
     this.onMessage(SnakeRoom.messageTypes.NEW_PLAYER, (client, message) => {

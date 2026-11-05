@@ -42,6 +42,10 @@ Once the PR is merged, CI (`.github/workflows/tag-engine.yml`) tags that `master
 
 Never tag by hand, and never tag a branch: CI owns the tags. See them at https://github.com/alexisNorthcoders/snake-colyseus/tags, or with `git fetch --tags && git tag --list 'engine-v*' --sort=-v:refname`.
 
+## Casual Stand-in
+
+In a public casual `snake` room, a Start message from a lone human (exactly one non-bot Player, no bot seated, lobby phase) seats the rookie as a **Stand-in** with `seatBot` before the countdown, in Timed and Endless. The countdown then locks the room, so nobody joins after. With two or more humans no bot is seated. A vs-bot room already has its bot, and Ranked and Exhibition rooms never start on request, so they are unchanged. With one bot seated the round reports to `/bot-results` as usual. No change under `src/bots/`, so no `engineVersion` bump.
+
 ## Ranked matches
 
 The `ranked` room (`src/rooms/RankedRoom.ts`) is the Ranked queue: Accounts only (`onAuth` checks `options.token` with go-server's `/verify-token`), timed at the default speed, 2 seats, never started by a Start message. After `gameConfig.standInWaitMs` (20 s) with one Account seated, the rated roster bot closest to the Account's Rating (read from go-server's `/rating`; 1500 if unreachable) sits down as the Stand-in. Its round also reports to `/bot-results`. At the end it reports to `POST <API_URL>/ranked-results` (same `BOT_RESULTS_SECRET`), retrying with backoff, then sends each client a `ratingUpdate` message with go-server's answer. See `src/rankedResults.ts`. Its Stand-in choice (`standInFor`, `ROOKIE_RATING`) is a new export from `src/bots/`, so `engineVersion` got a minor bump.

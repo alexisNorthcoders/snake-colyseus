@@ -11,7 +11,7 @@ The multiplayer game server: rooms, the engine's rules, the bots, and reporting 
 **Guest**: someone playing with an anonymous token. Refused by the `ranked` room.
 **Rating**: an Account's Glicko-2 skill estimate, 1500 by default. Held by go-server, never here.
 **Provisional**: a Rating based on fewer than 5 Ranked matches.
-**Stand-in**: a roster bot that plays a Ranked match in place of a human, when an Account has waited 20 seconds alone. Its Rating is fixed and never stored or changed.
+**Stand-in**: a roster bot that plays in place of a human: in Ranked, after a wait alone of 20 seconds; in a Casual match, when the player who starts it is alone (the rookie). Its Rating is fixed and never stored or changed.
 **Forfeit**: leaving a Ranked match once it is dealt. It is a loss for the leaver.
 **Exhibition**: a match in an `exhibition` room between two roster bots chosen by its creator, watched by Spectators. Nothing about it is reported or at stake.
 **Spectator**: a client in an Exhibition who watches it and has no snake.
