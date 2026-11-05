@@ -6,6 +6,7 @@ import {
   GameShape,
   PlayerShape,
   TickReport,
+  dealRound,
   foodScore,
   mulberry32,
   newPlainCell,
@@ -498,6 +499,15 @@ describe("engine turn", () => {
         return path(game, 1);
       });
       assert.deepStrictEqual(heads, [{ x: 5, y: 6 }, { x: 4, y: 6 }, { x: 4, y: 5 }]);
+    });
+
+    it("forgets turns still waiting when a new round is dealt", () => {
+      const { snake, game } = rightward();
+      turn(snake, "u");
+      turn(snake, "l");
+      dealRound(game, 0, newPlainCell);
+      const start = { x: snake.x, y: snake.y };
+      assert.deepStrictEqual(path(game, 2), [{ x: start.x + 1, y: start.y }, { x: start.x + 2, y: start.y }]);
     });
 
     it("takes a new turn again once the queue has been worked through", () => {
